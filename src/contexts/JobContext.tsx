@@ -48,7 +48,7 @@ export type JobType = {
   timestamp: number;
   status: 'open' | 'in-progress' | 'completed';
   comments: CommentType[];
-  likes: string[]; // Array de IDs de usuarios que dieron like;
+  likes: string[]; // Array de IDs de usuarios que dieron like
 };
 
 type JobContextType = {
@@ -64,7 +64,7 @@ type JobContextType = {
   getSavedJobs: (userId: string) => Promise<JobType[]>;
   toggleLike: (jobId: string, userId: string) => void;
   savedJobs: string[]; // Array de IDs de trabajos guardados por el usuario actual
-  loadJobs: () => Promise<void>; // Add method to refresh jobs
+  loadJobs: () => Promise<void>; // Método para recargar trabajos
 };
 
 const JobContext = createContext<JobContextType | null>(null);
@@ -72,7 +72,7 @@ const JobContext = createContext<JobContextType | null>(null);
 export const useJobs = () => {
   const context = useContext(JobContext);
   if (!context) {
-    throw new Error('useJobs must be used within a JobProvider');
+    throw new Error('useJobs debe usarse dentro de un JobProvider');
   }
   return context;
 };
@@ -92,7 +92,7 @@ export const JobProvider: React.FC<JobProviderProps> = ({ children }) => {
       const jobsData = await getAllJobs();
       setJobs(jobsData);
     } catch (error) {
-      console.error("Error loading jobs:", error);
+      console.error("Error al cargar trabajos:", error);
     } finally {
       setLoading(false);
     }
@@ -109,7 +109,7 @@ export const JobProvider: React.FC<JobProviderProps> = ({ children }) => {
       setJobs(prevJobs => [...prevJobs, typedNewJob]);
       return typedNewJob;
     } catch (error) {
-      console.error("Error creating job:", error);
+      console.error("Error al crear trabajo:", error);
       throw error;
     }
   };
@@ -124,7 +124,7 @@ export const JobProvider: React.FC<JobProviderProps> = ({ children }) => {
       
       return updatedJob;
     } catch (error) {
-      console.error("Error updating job:", error);
+      console.error("Error al actualizar trabajo:", error);
       throw error;
     }
   };
@@ -139,7 +139,7 @@ export const JobProvider: React.FC<JobProviderProps> = ({ children }) => {
       
       return success;
     } catch (error) {
-      console.error("Error deleting job:", error);
+      console.error("Error al eliminar trabajo:", error);
       throw error;
     }
   };
@@ -154,7 +154,7 @@ export const JobProvider: React.FC<JobProviderProps> = ({ children }) => {
           : job
       ));
     } catch (error) {
-      console.error("Error adding comment:", error);
+      console.error("Error al añadir comentario:", error);
       throw error;
     }
   };
@@ -178,7 +178,7 @@ export const JobProvider: React.FC<JobProviderProps> = ({ children }) => {
         };
       }));
     } catch (error) {
-      console.error("Error adding reply:", error);
+      console.error("Error al añadir respuesta:", error);
       throw error;
     }
   };
@@ -199,7 +199,7 @@ export const JobProvider: React.FC<JobProviderProps> = ({ children }) => {
         }
       });
     } catch (error) {
-      console.error("Error toggling saved job:", error);
+      console.error("Error al marcar/desmarcar trabajo guardado:", error);
     }
   };
 
@@ -210,7 +210,7 @@ export const JobProvider: React.FC<JobProviderProps> = ({ children }) => {
       setSavedJobs(savedJobIds);
       return savedJobsData;
     } catch (error) {
-      console.error("Error getting saved jobs:", error);
+      console.error("Error al obtener trabajos guardados:", error);
       return [];
     }
   };
@@ -232,7 +232,7 @@ export const JobProvider: React.FC<JobProviderProps> = ({ children }) => {
         };
       }));
     } catch (error) {
-      console.error("Error toggling like:", error);
+      console.error("Error al marcar/desmarcar me gusta:", error);
     }
   };
 
