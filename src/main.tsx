@@ -1,11 +1,11 @@
 
 /**
- * Application Entry Point
+ * Punto de entrada de la aplicación
  * 
- * This is the main entry point for the React application that:
- * - Initializes Firebase data
- * - Sets up global providers
- * - Renders the main App component to the DOM
+ * Este es el punto de entrada principal para la aplicación React que:
+ * - Inicializa los datos de Firebase
+ * - Configura los proveedores globales
+ * - Renderiza el componente principal App en el DOM
  */
 
 import React from 'react'
@@ -20,14 +20,14 @@ import { ChatProvider } from './contexts/ChatContext.tsx'
 import { Toaster } from './components/ui/toaster.tsx'
 import { initializeFirebaseData } from './lib/firebaseUtils'
 
-// Initialize Firebase data before rendering the app
+// Inicializar los datos de Firebase antes de renderizar la aplicación
 initializeFirebaseData().then(() => {
-  console.log("Firebase initialization complete or already initialized");
+  console.log("La inicialización de Firebase está completa o ya fue inicializada");
 }).catch(error => {
-  console.error("Firebase initialization failed:", error);
+  console.error("La inicialización de Firebase falló:", error);
 });
 
-// Render the application to the DOM
+// Renderizar la aplicación en el DOM
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <ThemeProvider>

@@ -2,7 +2,7 @@
 import { doc, getDoc, setDoc, collection, getDocs, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "./firebase";
 
-// Sample job categories
+// Categorías de trabajo de ejemplo
 const SAMPLE_JOB_CATEGORIES = [
   'Desarrollo Web',
   'Diseño UX/UI',
@@ -14,7 +14,7 @@ const SAMPLE_JOB_CATEGORIES = [
   'Análisis de Datos'
 ];
 
-// Sample skills list
+// Lista de habilidades de ejemplo
 const SAMPLE_SKILLS = [
   'JavaScript',
   'React',
@@ -45,7 +45,7 @@ const SAMPLE_SKILLS = [
   'Machine Learning'
 ];
 
-// Sample users data
+// Datos de usuarios de ejemplo
 const SAMPLE_USERS = [
   {
     name: 'Carlos Rodriguez',
@@ -72,7 +72,7 @@ const SAMPLE_USERS = [
   }
 ];
 
-// Sample jobs
+// Trabajos de ejemplo
 const SAMPLE_JOBS = [
   {
     title: 'Desarrollo de sitio web responsive',
@@ -80,7 +80,7 @@ const SAMPLE_JOBS = [
     budget: 1500,
     category: 'Desarrollo Web',
     skills: ['JavaScript', 'React', 'HTML/CSS'],
-    userId: '', // Will be populated with actual user ID
+    userId: '', // Se completará con el ID de usuario actual
     userName: 'Empresa ABC',
     userPhoto: 'https://logo.clearbit.com/acme.com',
     status: 'open'
@@ -91,33 +91,33 @@ const SAMPLE_JOBS = [
     budget: 1200,
     category: 'Diseño UX/UI',
     skills: ['UI Design', 'UX Research', 'Figma'],
-    userId: '', // Will be populated with actual user ID
+    userId: '', // Se completará con el ID de usuario actual
     userName: 'Empresa ABC',
     userPhoto: 'https://logo.clearbit.com/acme.com',
     status: 'open'
   }
 ];
 
-// Function to create a collection if it doesn't exist
+// Función para crear una colección si no existe
 const ensureCollectionExists = async (collectionName) => {
   const collectionRef = collection(db, collectionName);
   const snapshot = await getDocs(collectionRef);
   return snapshot.empty;
 };
 
-// Function to initialize Firebase with sample data
+// Función para inicializar Firebase con datos de ejemplo
 export const initializeFirebaseData = async () => {
   try {
-    // Check if metadata collection exists
+    // Verificar si la colección de metadatos existe
     const metadataDoc = await getDoc(doc(db, "metadata", "initialized"));
     if (metadataDoc.exists()) {
-      console.log("Firebase already initialized with sample data");
+      console.log("Firebase ya está inicializado con datos de ejemplo");
       return;
     }
 
-    console.log("Initializing Firebase with sample data...");
+    console.log("Inicializando Firebase con datos de ejemplo...");
     
-    // Create collections if they don't exist
+    // Crear colecciones si no existen
     await Promise.all([
       ensureCollectionExists("users"),
       ensureCollectionExists("jobs"),
@@ -125,17 +125,17 @@ export const initializeFirebaseData = async () => {
       ensureCollectionExists("metadata")
     ]);
 
-    // Add job categories
+    // Añadir categorías de trabajo
     await setDoc(doc(db, "metadata", "jobCategories"), {
       categories: SAMPLE_JOB_CATEGORIES
     });
 
-    // Add skills list
+    // Añadir lista de habilidades
     await setDoc(doc(db, "metadata", "skills"), {
       skills: SAMPLE_SKILLS
     });
 
-    // Add sample users
+    // Añadir usuarios de ejemplo
     const userPromises = SAMPLE_USERS.map(async (userData) => {
       const userDocRef = doc(collection(db, "users"));
       const userId = userDocRef.id;
@@ -150,7 +150,7 @@ export const initializeFirebaseData = async () => {
     
     const createdUsers = await Promise.all(userPromises);
     
-    // Add sample jobs linked to created users
+    // Añadir trabajos de ejemplo vinculados a los usuarios creados
     const clientUser = createdUsers.find(user => user.role === 'client');
     if (clientUser) {
       const jobPromises = SAMPLE_JOBS.map(async (jobData) => {
@@ -166,15 +166,15 @@ export const initializeFirebaseData = async () => {
       await Promise.all(jobPromises);
     }
 
-    // Mark as initialized
+    // Marcar como inicializado
     await setDoc(doc(db, "metadata", "initialized"), {
       timestamp: serverTimestamp(),
       initialized: true
     });
 
-    console.log("Firebase initialized with sample data successfully!");
+    console.log("Firebase inicializado con datos de ejemplo exitosamente!");
   } catch (error) {
-    console.error("Error initializing Firebase data:", error);
+    console.error("Error al inicializar los datos de Firebase:", error);
     throw error;
   }
 };
