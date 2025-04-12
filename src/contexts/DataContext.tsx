@@ -1,4 +1,17 @@
 
+/**
+ * Contexto de Datos
+ * 
+ * Proporciona acceso centralizado a datos compartidos en la aplicación:
+ * - Lista de usuarios
+ * - Categorías de trabajos
+ * - Lista de habilidades disponibles
+ * - Datos de trabajos
+ * 
+ * Estos datos se cargan desde Firebase y se mantienen disponibles para
+ * todos los componentes que los necesiten.
+ */
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { JobType } from './JobContext';
 import {
@@ -9,7 +22,7 @@ import {
   getAllJobs as getFirebaseJobs
 } from '@/lib/firebaseUtils';
 
-// Asegúrate de que el UserType en DataContext coincida o extienda el UserType de AuthContext
+// Tipo de usuario para el DataContext (asegurándose que sea compatible con AuthContext)
 export type UserType = {
   id: string;
   name: string;
@@ -30,18 +43,21 @@ export type CommentType = {
 };
 
 export interface DataContextType {
-  users: UserType[];
-  getUserById: (userId: string) => UserType | undefined;
-  getAllUsers: () => UserType[];
-  loading: boolean;
-  jobs: JobType[];
-  jobCategories: string[];
-  skillsList: string[];
-  loadData: () => Promise<void>;
+  users: UserType[];                                     // Lista de todos los usuarios
+  getUserById: (userId: string) => UserType | undefined; // Obtener usuario por ID
+  getAllUsers: () => UserType[];                         // Obtener todos los usuarios
+  loading: boolean;                                      // Estado de carga
+  jobs: JobType[];                                       // Lista de trabajos
+  jobCategories: string[];                               // Categorías de trabajos disponibles
+  skillsList: string[];                                  // Lista de habilidades disponibles
+  loadData: () => Promise<void>;                         // Función para recargar datos
 }
 
 const DataContext = createContext<DataContextType | null>(null);
 
+/**
+ * Hook personalizado para acceder al contexto de datos
+ */
 export const useData = () => {
   const context = useContext(DataContext);
   if (!context) {
@@ -50,6 +66,10 @@ export const useData = () => {
   return context;
 };
 
+/**
+ * Proveedor del contexto de datos
+ * Carga y proporciona acceso a datos compartidos de la aplicación
+ */
 export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   const [users, setUsers] = useState<UserType[]>([]);
   const [jobs, setJobs] = useState<JobType[]>([]);
@@ -57,6 +77,9 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   const [jobCategories, setJobCategories] = useState<string[]>([]);
   const [skillsList, setSkillsList] = useState<string[]>([]);
 
+  /**
+   * Función para cargar todos los datos desde Firebase
+   */
   const loadData = async () => {
     setLoading(true);
     try {
@@ -93,14 +116,21 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  // Cargar datos iniciales al montar el componente
   useEffect(() => {
     loadData();
   }, []);
 
+  /**
+   * Función para obtener un usuario por su ID
+   */
   const getUserById = (userId: string) => {
     return users.find(user => user.id === userId);
   };
   
+  /**
+   * Función para obtener todos los usuarios
+   */
   const getAllUsers = () => {
     return users;
   };

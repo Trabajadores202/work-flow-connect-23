@@ -1,3 +1,14 @@
+
+/**
+ * Contexto de Autenticación
+ * 
+ * Este contexto proporciona funcionalidad de autenticación para la aplicación, incluyendo:
+ * - Manejo de inicio de sesión y registro de usuarios
+ * - Gestión del estado del usuario actual
+ * - Actualización del perfil de usuario
+ * - Cierre de sesión
+ */
+
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { onAuthStateChanged } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
@@ -25,21 +36,24 @@ export type UserType = {
 };
 
 interface AuthContextType {
-  currentUser: UserType | null;
-  loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name: string) => Promise<void>;
-  logout: () => Promise<void>;
-  updateUserProfile: (data: Partial<UserType>) => Promise<void>;
-  uploadProfilePhoto: (file: File) => Promise<string>;
+  currentUser: UserType | null; // Usuario actualmente autenticado
+  loading: boolean; // Indica si está cargando el estado de autenticación
+  login: (email: string, password: string) => Promise<void>; // Función para iniciar sesión
+  register: (email: string, password: string, name: string) => Promise<void>; // Función para registrar un nuevo usuario
+  logout: () => Promise<void>; // Función para cerrar sesión
+  updateUserProfile: (data: Partial<UserType>) => Promise<void>; // Función para actualizar el perfil del usuario
+  uploadProfilePhoto: (file: File) => Promise<string>; // Función para subir una foto de perfil
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+/**
+ * Hook personalizado para acceder al contexto de autenticación
+ */
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error('useAuth debe usarse dentro de un AuthProvider');
   }
   return context;
 };
@@ -48,10 +62,15 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
+/**
+ * Proveedor del contexto de autenticación
+ * Maneja el estado de autenticación y proporciona funciones relacionadas
+ */
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<UserType | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Efecto para escuchar cambios en el estado de autenticación
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
@@ -72,7 +91,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             });
           }
         } catch (error) {
-          console.error("Error fetching user data:", error);
+          console.error("Error al obtener datos del usuario:", error);
           toast({
             variant: "destructive",
             title: "Error",
@@ -88,6 +107,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return () => unsubscribe();
   }, []);
 
+  /**
+   * Función para iniciar sesión con correo y contraseña
+   */
   const login = async (email: string, password: string) => {
     setLoading(true);
     try {
@@ -109,6 +131,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  /**
+   * Función para registrar un nuevo usuario
+   */
   const register = async (email: string, password: string, name: string) => {
     setLoading(true);
     try {
@@ -130,6 +155,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  /**
+   * Función para cerrar sesión
+   */
   const logout = async () => {
     try {
       await logoutUser();
@@ -147,6 +175,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  /**
+   * Función para actualizar el perfil del usuario
+   */
   const updateUserProfile = async (data: Partial<UserType>) => {
     if (!currentUser) throw new Error('No hay usuario autenticado');
     
@@ -167,6 +198,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  /**
+   * Función para subir una foto de perfil
+   */
   const uploadProfilePhoto = async (file: File) => {
     if (!currentUser) throw new Error('No hay usuario autenticado');
     

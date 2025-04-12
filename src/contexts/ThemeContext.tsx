@@ -1,23 +1,37 @@
 
+/**
+ * Contexto del Tema
+ * 
+ * Gestiona el tema de la aplicación (claro/oscuro) y permite a los usuarios
+ * cambiar entre temas. Persiste la preferencia del usuario en localStorage.
+ */
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
 type Theme = 'light' | 'dark';
 
 type ThemeContextType = {
-  theme: Theme;
-  toggleTheme: () => void;
+  theme: Theme;          // Tema actual ('light' o 'dark')
+  toggleTheme: () => void; // Función para alternar entre temas
 };
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
+/**
+ * Hook personalizado para acceder al contexto del tema
+ */
 export const useTheme = () => {
   const context = useContext(ThemeContext);
   if (context === undefined) {
-    throw new Error('useTheme must be used within a ThemeProvider');
+    throw new Error('useTheme debe usarse dentro de un ThemeProvider');
   }
   return context;
 };
 
+/**
+ * Proveedor del contexto del tema
+ * Maneja la lógica para cambiar entre temas claro y oscuro
+ */
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [theme, setTheme] = useState<Theme>('light');
 
@@ -38,6 +52,10 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, []);
 
+  /**
+   * Función para alternar entre temas claro y oscuro
+   * Actualiza el estado, las clases CSS y guarda la preferencia en localStorage
+   */
   const toggleTheme = () => {
     const newTheme = theme === 'light' ? 'dark' : 'light';
     setTheme(newTheme);

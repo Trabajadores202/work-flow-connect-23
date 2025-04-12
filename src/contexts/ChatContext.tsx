@@ -66,7 +66,9 @@ interface ChatContextType {
 // Crear el contexto
 const ChatContext = createContext<ChatContextType | null>(null);
 
-// Hook personalizado para usar el contexto de chat
+/**
+ * Hook personalizado para usar el contexto de chat
+ */
 export const useChat = () => {
   const context = useContext(ChatContext);
   if (!context) {
@@ -75,7 +77,7 @@ export const useChat = () => {
   return context;
 };
 
-// Usuario en línea simulados - en una app real esto vendría de un sistema de presencia
+// Usuarios en línea simulados - en una app real esto vendría de un sistema de presencia
 const MOCK_ONLINE_USERS = ['1', '2', '3'];
 
 // Props para el provider
@@ -83,7 +85,10 @@ interface ChatProviderProps {
   children: ReactNode;
 }
 
-// Componente proveedor del contexto de chat
+/**
+ * Componente proveedor del contexto de chat
+ * Gestiona la funcionalidad de chat en tiempo real
+ */
 export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   // Obtener usuario actual del contexto de autenticación
   const { currentUser } = useAuth();
