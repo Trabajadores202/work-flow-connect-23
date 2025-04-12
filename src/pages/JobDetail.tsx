@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import MainLayout from '@/components/Layout/MainLayout';
@@ -15,21 +16,42 @@ import { MessageCircle, Calendar, DollarSign, User, Heart, Bookmark } from 'luci
 import { toast } from '@/components/ui/use-toast';
 import { CommentItem } from '@/components/Comments/CommentItem';
 
+/**
+ * Componente de la página de detalles de una propuesta
+ * 
+ * Esta página muestra toda la información de una propuesta específica:
+ * - Información general como título, descripción, presupuesto
+ * - Habilidades requeridas
+ * - Sistema de comentarios
+ * - Información del cliente
+ * - Opciones para contactar al cliente
+ * - Opciones para guardar/dar like a la propuesta
+ */
 const JobDetail = () => {
+  // Hooks de React Router para obtener el ID de la propuesta y navegación
   const { jobId } = useParams<{ jobId: string }>();
   const navigate = useNavigate();
-  const { getJob, addComment, toggleSavedJob, toggleLike, savedJobs } = useJobs();
-  const { currentUser } = useAuth();
-  const { findExistingPrivateChat, createPrivateChat } = useChat();
-  const { getUserById } = useData();
+  
+  // Hooks de contexto para acceder a datos y funcionalidades
+  const { getJob, addComment, toggleSavedJob, toggleLike, savedJobs } = useJobs(); // Funcionalidades de propuestas
+  const { currentUser } = useAuth(); // Información del usuario actual
+  const { findExistingPrivateChat, createPrivateChat } = useChat(); // Funcionalidades de chat
+  const { getUserById } = useData(); // Para obtener datos de usuarios
+  
+  // Estados locales para el formulario de comentarios
   const [commentText, setCommentText] = useState('');
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   
+  // Obtener la propuesta basada en el ID de la URL
   const job = jobId ? getJob(jobId) : undefined;
+  // Obtener información del propietario de la propuesta
   const jobOwner = job ? getUserById(job.userId) : undefined;
+  // Verificar si la propuesta está guardada por el usuario actual
   const isJobSaved = job && savedJobs.includes(job.id);
+  // Verificar si el usuario ha dado like a la propuesta
   const hasUserLiked = job && currentUser ? job.likes.includes(currentUser.id) : false;
   
+  // Si no se encuentra la propuesta, mostrar mensaje de error
   if (!job) {
     return (
       <MainLayout>
@@ -44,19 +66,27 @@ const JobDetail = () => {
     );
   }
 
+  /**
+   * Función para manejar el botón de contacto
+   * Verifica si ya existe un chat con el usuario y navega a él,
+   * o crea uno nuevo si no existe
+   */
   const handleContactClick = async () => {
     if (!currentUser || !job) return;
     
     try {
+      // Buscar si ya existe un chat privado con este usuario
       const existingChat = findExistingPrivateChat(job.userId);
       
       if (existingChat) {
+        // Si ya existe un chat, navegar a él
         navigate('/chats');
         toast({
           title: "Chat existente",
           description: `Continuando conversación con ${jobOwner?.name || 'usuario'}`
         });
       } else {
+        // Si no existe, crear un nuevo chat privado
         await createPrivateChat(job.userId);
         navigate('/chats');
         toast({
@@ -74,13 +104,17 @@ const JobDetail = () => {
     }
   };
 
+  /**
+   * Función para enviar un nuevo comentario a la propuesta
+   */
   const handleSubmitComment = async () => {
     if (!commentText.trim() || !currentUser) return;
     
     setIsSubmittingComment(true);
     try {
+      // Llamar a la función para añadir el comentario a la propuesta
       await addComment(job.id, commentText, currentUser);
-      setCommentText('');
+      setCommentText(''); // Limpiar el campo de comentario
       toast({
         title: "Comentario enviado",
         description: "Tu comentario ha sido publicado correctamente"
@@ -96,6 +130,9 @@ const JobDetail = () => {
     }
   };
 
+  /**
+   * Función para guardar/quitar de guardados una propuesta
+   */
   const handleToggleSave = () => {
     if (!currentUser || !job) return;
     
@@ -108,12 +145,18 @@ const JobDetail = () => {
     });
   };
 
+  /**
+   * Función para dar/quitar like a una propuesta
+   */
   const handleToggleLike = () => {
     if (!currentUser || !job) return;
     
     toggleLike(job.id, currentUser.id);
   };
 
+  /**
+   * Función para formatear fechas (día/mes/año)
+   */
   const formatDate = (timestamp: number) => {
     const date = new Date(timestamp);
     return date.toLocaleDateString('es-ES', {
@@ -123,6 +166,9 @@ const JobDetail = () => {
     });
   };
 
+  /**
+   * Función para formatear horas (hora:minutos)
+   */
   const formatTime = (timestamp: number) => {
     const date = new Date(timestamp);
     return date.toLocaleTimeString('es-ES', {
@@ -131,9 +177,11 @@ const JobDetail = () => {
     });
   };
 
+  // Renderizado del componente
   return (
     <MainLayout>
       <div className="space-y-6">
+        {/* Cabecera con título y acciones */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b border-gray-200">
           <div>
             <h1 className="text-2xl font-bold">{job.title}</h1>
@@ -143,6 +191,7 @@ const JobDetail = () => {
           </div>
           
           <div className="flex items-center gap-2">
+            {/* Badge que muestra el estado de la propuesta */}
             <Badge className={`
               ${job.status === 'open' ? 'bg-green-100 text-green-800 hover:bg-green-200' : 
                 job.status === 'in-progress' ? 'bg-blue-100 text-blue-800 hover:bg-blue-200' : 
@@ -153,6 +202,7 @@ const JobDetail = () => {
                'Completado'}
             </Badge>
             
+            {/* Botones de like y guardar, solo para usuarios autenticados */}
             {currentUser && (
               <>
                 <Button 
@@ -177,8 +227,11 @@ const JobDetail = () => {
           </div>
         </div>
         
+        {/* Layout principal con contenido y sidebar */}
         <div className="grid md:grid-cols-3 gap-6">
+          {/* Columna principal (2/3 del ancho) */}
           <div className="md:col-span-2 space-y-6">
+            {/* Tarjeta de descripción de la propuesta */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">Descripción</CardTitle>
@@ -186,6 +239,7 @@ const JobDetail = () => {
               <CardContent>
                 <p className="text-gray-700 whitespace-pre-line">{job.description}</p>
                 
+                {/* Sección de habilidades requeridas */}
                 <div className="mt-6">
                   <h3 className="font-medium mb-2">Habilidades requeridas</h3>
                   <div className="flex flex-wrap gap-2">
@@ -197,6 +251,7 @@ const JobDetail = () => {
                   </div>
                 </div>
                 
+                {/* Contador de likes */}
                 <div className="mt-4 flex items-center">
                   <Heart className={`h-5 w-5 mr-1 ${job.likes.length > 0 ? "text-red-500 fill-red-500" : "text-gray-400"}`} />
                   <span className="text-sm">{job.likes.length} {job.likes.length === 1 ? "like" : "likes"}</span>
@@ -204,6 +259,7 @@ const JobDetail = () => {
               </CardContent>
             </Card>
             
+            {/* Tarjeta de comentarios */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">Comentarios</CardTitle>
@@ -212,6 +268,7 @@ const JobDetail = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
+                {/* Lista de comentarios existentes */}
                 {job.comments.length > 0 && (
                   <div className="space-y-4 mb-6">
                     {job.comments.map((comment) => (
@@ -220,6 +277,7 @@ const JobDetail = () => {
                   </div>
                 )}
                 
+                {/* Formulario para añadir un nuevo comentario (solo para usuarios autenticados) */}
                 {currentUser && job.status === 'open' && (
                   <div className="space-y-4">
                     <Separator />
@@ -243,12 +301,15 @@ const JobDetail = () => {
             </Card>
           </div>
           
+          {/* Sidebar (1/3 del ancho) */}
           <div className="space-y-6">
+            {/* Tarjeta con detalles de la propuesta */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">Detalles de la propuesta</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* Presupuesto */}
                 <div className="flex items-center">
                   <DollarSign className="h-5 w-5 text-gray-500 mr-2" />
                   <div>
@@ -256,6 +317,7 @@ const JobDetail = () => {
                     <p className="font-medium">${job.budget}</p>
                   </div>
                 </div>
+                {/* Fecha de publicación */}
                 <div className="flex items-center">
                   <Calendar className="h-5 w-5 text-gray-500 mr-2" />
                   <div>
@@ -263,6 +325,7 @@ const JobDetail = () => {
                     <p className="font-medium">{formatDate(job.timestamp)}</p>
                   </div>
                 </div>
+                {/* Categoría */}
                 <div className="flex items-center">
                   <Badge className="bg-purple-100 text-purple-800 hover:bg-purple-200 mr-2">
                     {job.category}
@@ -272,11 +335,13 @@ const JobDetail = () => {
               </CardContent>
             </Card>
             
+            {/* Tarjeta con información del cliente */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">Cliente</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* Información básica del cliente */}
                 <div className="flex items-center space-x-3">
                   <Avatar>
                     <AvatarImage src={job.userPhoto} alt={job.userName} />
@@ -289,6 +354,7 @@ const JobDetail = () => {
                   </div>
                 </div>
                 
+                {/* Botón de contacto (solo para usuarios autenticados que no son el dueño) */}
                 {currentUser && currentUser.id !== job.userId && (
                   <Button
                     variant="outline"
@@ -300,6 +366,7 @@ const JobDetail = () => {
                   </Button>
                 )}
                 
+                {/* Botón para ver perfil completo */}
                 <Button
                   variant="outline"
                   className="w-full"

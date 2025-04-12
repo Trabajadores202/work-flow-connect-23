@@ -1,14 +1,15 @@
+
 /**
- * User Profile Page Component
+ * Componente de Página de Perfil de Usuario
  * 
- * This page shows the profile of another user including:
- * - User's personal information and profile photo
- * - User's bio and skills
- * - Button to contact/chat with the user
- * - List of job proposals posted by the user
+ * Esta página muestra el perfil de otro usuario incluyendo:
+ * - Información personal del usuario y foto de perfil
+ * - Biografía y habilidades del usuario
+ * - Botón para contactar/chatear con el usuario
+ * - Lista de propuestas publicadas por el usuario
  * 
- * It handles the logic for either creating a new chat or navigating to an existing chat
- * when the "Contact" button is clicked.
+ * Maneja la lógica para crear un nuevo chat o navegar a uno existente
+ * cuando se hace clic en el botón "Contactar".
  */
 
 import { useParams, useNavigate } from 'react-router-dom';
@@ -25,38 +26,41 @@ import { MessageCircle } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 
 const UserProfile = () => {
+  // Obtener el ID del usuario de los parámetros de la URL
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
-  const { getUserById } = useData();
-  const { jobs } = useJobs();
-  const { currentUser } = useAuth();
-  const { createPrivateChat, findExistingPrivateChat } = useChat();
   
-  // Get user data from the ID in the URL
+  // Hooks de contexto para acceder a datos y funcionalidades
+  const { getUserById } = useData(); // Para obtener datos del usuario
+  const { jobs } = useJobs(); // Para obtener propuestas
+  const { currentUser } = useAuth(); // Usuario actual autenticado
+  const { createPrivateChat, findExistingPrivateChat } = useChat(); // Funcionalidades de chat
+  
+  // Obtener datos del usuario desde el ID en la URL
   const user = userId ? getUserById(userId) : undefined;
   
-  // Filter job proposals from this user
+  // Filtrar propuestas publicadas por este usuario
   const userJobs = jobs.filter(job => job.userId === userId);
   
   /**
-   * Handle the "Contact" button click
-   * This function either opens an existing chat or creates a new one
+   * Manejar el clic en el botón "Contactar"
+   * Esta función abre un chat existente o crea uno nuevo
    */
   const handleContactClick = () => {
     if (!currentUser || !user) return;
     
-    // Check if a chat already exists with this user
+    // Verificar si ya existe un chat con este usuario
     const existingChat = findExistingPrivateChat(user.id);
     
     if (existingChat) {
-      // If a chat exists, navigate to it
+      // Si existe un chat, navegar a él
       navigate('/chats');
       toast({
         title: "Chat existente",
         description: `Abriendo la conversación con ${user.name}`
       });
     } else {
-      // If not, create a new one
+      // Si no, crear uno nuevo
       createPrivateChat(user.id);
       navigate('/chats');
       toast({
@@ -66,7 +70,7 @@ const UserProfile = () => {
     }
   };
 
-  // Helper function to format timestamps
+  // Función auxiliar para formatear fechas
   const formatDate = (timestamp?: number) => {
     if (!timestamp) return "Fecha no disponible";
     
@@ -78,7 +82,7 @@ const UserProfile = () => {
     });
   };
 
-  // Display message if user not found
+  // Mostrar mensaje si no se encuentra el usuario
   if (!user) {
     return (
       <MainLayout>
@@ -96,11 +100,11 @@ const UserProfile = () => {
   return (
     <MainLayout>
       <div className="space-y-8">
-        {/* User profile card */}
+        {/* Tarjeta de perfil de usuario */}
         <Card>
           <CardContent className="p-6">
             <div className="grid gap-6 md:grid-cols-[200px_1fr]">
-              {/* Profile photo and contact button */}
+              {/* Foto de perfil y botón de contacto */}
               <div className="flex flex-col items-center text-center">
                 <Avatar className="h-32 w-32">
                   <AvatarImage src={user.photoURL} alt={user.name} />
@@ -110,7 +114,7 @@ const UserProfile = () => {
                 </Avatar>
                 <h2 className="text-xl font-bold mt-4">{user.name}</h2>
                 
-                {/* Only show contact button if not the current user */}
+                {/* Solo mostrar botón de contacto si no es el usuario actual */}
                 {currentUser && currentUser.id !== userId && (
                   <Button 
                     className="mt-4 w-full bg-wfc-purple hover:bg-wfc-purple-medium"
@@ -122,8 +126,9 @@ const UserProfile = () => {
                 )}
               </div>
               
-              {/* User information */}
+              {/* Información del usuario */}
               <div className="space-y-6">
+                {/* Biografía */}
                 {user.bio ? (
                   <div>
                     <h3 className="text-lg font-semibold mb-2">Biografía</h3>
@@ -136,6 +141,7 @@ const UserProfile = () => {
                   </div>
                 )}
                 
+                {/* Habilidades */}
                 <div>
                   <h3 className="text-lg font-semibold mb-2">Habilidades</h3>
                   {user.skills && user.skills.length > 0 ? (
@@ -151,6 +157,7 @@ const UserProfile = () => {
                   )}
                 </div>
                 
+                {/* Información adicional */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <h4 className="text-sm text-gray-600 mb-1">Email</h4>
@@ -166,7 +173,7 @@ const UserProfile = () => {
           </CardContent>
         </Card>
         
-        {/* User's job proposals */}
+        {/* Propuestas del usuario */}
         <Card>
           <CardHeader>
             <CardTitle>Propuestas de {user.name}</CardTitle>

@@ -1,4 +1,11 @@
 
+/**
+ * Componente Dashboard
+ * 
+ * Esta es la página principal que se muestra a los usuarios después de iniciar sesión.
+ * Muestra un resumen del sistema con estadísticas, propuestas recientes y mensajes recientes.
+ */
+
 import MainLayout from '@/components/Layout/MainLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { useJobs } from '@/contexts/JobContext';
@@ -9,23 +16,31 @@ import { Link } from 'react-router-dom';
 import { Briefcase, MessageCircle, Timer, ArrowRight } from 'lucide-react';
 
 const Dashboard = () => {
+  // Obtener datos del usuario autenticado
   const { currentUser } = useAuth();
+  
+  // Obtener listado de propuestas y estado de carga
   const { jobs, loading: loadingJobs } = useJobs();
+  
+  // Obtener listado de chats y estado de carga
   const { chats, loadingChats } = useChat();
 
-  // Filtrar propuestas recientes
+  // Filtrar las 3 propuestas más recientes
   const recentJobs = [...jobs].sort((a, b) => b.timestamp - a.timestamp).slice(0, 3);
 
-  // Filtrar chats con mensajes recientes
+  // Filtrar los 3 chats con mensajes más recientes
   const recentChats = [...chats]
-    .filter(chat => chat.lastMessage)
+    .filter(chat => chat.lastMessage) // Solo chats con mensajes
     .sort((a, b) => {
       const timestampA = a.lastMessage?.timestamp || 0;
       const timestampB = b.lastMessage?.timestamp || 0;
-      return timestampB - timestampA;
+      return timestampB - timestampA; // Ordenar de más reciente a más antiguo
     })
-    .slice(0, 3);
+    .slice(0, 3); // Tomar solo los 3 primeros
 
+  /**
+   * Función para formatear fechas en formato día/mes/año
+   */
   const formatDate = (timestamp: number) => {
     const date = new Date(timestamp);
     return date.toLocaleDateString('es-ES', {
@@ -38,14 +53,15 @@ const Dashboard = () => {
   return (
     <MainLayout>
       <div className="space-y-8">
-        {/* Bienvenida */}
+        {/* Sección de bienvenida */}
         <div className="pb-4 border-b border-gray-200">
           <h1 className="text-2xl sm:text-3xl font-bold">¡Bienvenido, {currentUser?.name}!</h1>
           <p className="text-gray-600 mt-2">Esto es lo que está pasando en WorkFlowConnect hoy.</p>
         </div>
         
-        {/* Estadísticas */}
+        {/* Sección de estadísticas - Muestra 3 tarjetas con resúmenes */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Tarjeta de propuestas activas */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-lg">Propuestas</CardTitle>
@@ -61,6 +77,7 @@ const Dashboard = () => {
             </CardContent>
           </Card>
           
+          {/* Tarjeta de chats activos */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-lg">Mensajes</CardTitle>
@@ -76,6 +93,7 @@ const Dashboard = () => {
             </CardContent>
           </Card>
           
+          {/* Tarjeta de actividad reciente */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-lg">Actividad</CardTitle>
@@ -90,7 +108,7 @@ const Dashboard = () => {
           </Card>
         </div>
         
-        {/* Propuestas recientes */}
+        {/* Sección de propuestas recientes */}
         <div>
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold">Propuestas recientes</h2>
@@ -101,6 +119,7 @@ const Dashboard = () => {
             </Link>
           </div>
           
+          {/* Mostrar estado de carga, mensaje si no hay propuestas, o lista de propuestas */}
           {loadingJobs ? (
             <div className="text-center py-8">Cargando propuestas...</div>
           ) : recentJobs.length === 0 ? (
@@ -114,6 +133,7 @@ const Dashboard = () => {
             </div>
           ) : (
             <div className="grid gap-4">
+              {/* Mapear cada propuesta reciente a una tarjeta */}
               {recentJobs.map((job) => (
                 <Link key={job.id} to={`/jobs/${job.id}`}>
                   <Card className="hover:border-wfc-purple transition-colors">
@@ -147,7 +167,7 @@ const Dashboard = () => {
           )}
         </div>
         
-        {/* Mensajes recientes */}
+        {/* Sección de mensajes recientes */}
         <div>
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold">Mensajes recientes</h2>
@@ -158,6 +178,7 @@ const Dashboard = () => {
             </Link>
           </div>
           
+          {/* Mostrar estado de carga, mensaje si no hay chats, o lista de chats */}
           {loadingChats ? (
             <div className="text-center py-8">Cargando mensajes...</div>
           ) : recentChats.length === 0 ? (
@@ -166,12 +187,14 @@ const Dashboard = () => {
             </div>
           ) : (
             <div className="grid gap-4">
+              {/* Mapear cada chat reciente a una tarjeta */}
               {recentChats.map((chat) => (
                 <Link key={chat.id} to="/chats">
                   <Card className="hover:border-wfc-purple transition-colors">
                     <CardContent className="py-4">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center">
+                          {/* Avatar del chat (primera letra del nombre) */}
                           <div className="h-10 w-10 rounded-full bg-wfc-purple/20 flex items-center justify-center text-wfc-purple font-semibold">
                             {chat.isGroup ? chat.name.charAt(0) : currentUser?.id === chat.participants[0] ? 'U' : 'T'}
                           </div>
@@ -184,6 +207,7 @@ const Dashboard = () => {
                             </p>
                           </div>
                         </div>
+                        {/* Hora del último mensaje */}
                         <span className="text-xs text-gray-500">
                           {chat.lastMessage ? new Date(chat.lastMessage.timestamp).toLocaleTimeString('es-ES', {
                             hour: '2-digit',

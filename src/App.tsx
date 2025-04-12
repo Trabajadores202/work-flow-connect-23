@@ -1,12 +1,12 @@
 
 /**
- * Main Application Component
+ * Componente Principal de la Aplicación
  * 
- * This is the entry point for the React application that contains:
- * - Global providers (Theme, Auth, Data, Jobs, Chat)
- * - Routing configuration using React Router
- * - Protected routes implementation
- * - Public routes configuration
+ * Este es el punto de entrada de la aplicación React que contiene:
+ * - Proveedores globales (Theme, Auth, Data, Jobs, Chat)
+ * - Configuración de rutas usando React Router
+ * - Implementación de rutas protegidas
+ * - Configuración de rutas públicas
  */
 
 import { useEffect } from "react";
@@ -22,7 +22,7 @@ import { DataProvider } from "@/contexts/DataContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { initializeFirebaseData } from "@/lib/initializeFirebase";
 
-// Import page components
+// Importar componentes de páginas
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -35,65 +35,71 @@ import UserProfile from "./pages/UserProfile";
 import CreateJobPage from "./pages/CreateJobPage";
 import NotFound from "./pages/NotFound";
 
-// Initialize React Query client
+// Inicializar el cliente de React Query
 const queryClient = new QueryClient();
 
 /**
- * Protected Route Component
- * Ensures the user is authenticated before accessing the route
- * Redirects to login if not authenticated
+ * Componente de Ruta Protegida
+ * Asegura que el usuario esté autenticado antes de acceder a la ruta
+ * Redirige a login si no está autenticado
  */
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { currentUser, loading } = useAuth();
   
+  // Mostrar pantalla de carga mientras se verifica el estado de autenticación
   if (loading) {
     return <div className="flex items-center justify-center min-h-screen">Cargando...</div>;
   }
   
+  // Redireccionar a login si no hay usuario autenticado
   if (!currentUser) {
     return <Navigate to="/login" />;
   }
   
+  // Si hay usuario autenticado, mostrar el contenido protegido
   return <>{children}</>;
 };
 
 /**
- * Public Only Route Component
- * Only accessible when not logged in
- * Redirects to dashboard if already authenticated
+ * Componente de Ruta Solo Pública
+ * Accesible solo cuando no hay sesión iniciada
+ * Redirige al dashboard si ya está autenticado
  */
 const PublicOnlyRoute = ({ children }: { children: React.ReactNode }) => {
   const { currentUser, loading } = useAuth();
   
+  // Mostrar pantalla de carga mientras se verifica el estado de autenticación
   if (loading) {
     return <div className="flex items-center justify-center min-h-screen">Cargando...</div>;
   }
   
+  // Redireccionar al dashboard si ya hay un usuario autenticado
   if (currentUser) {
     return <Navigate to="/dashboard" />;
   }
   
+  // Si no hay usuario autenticado, mostrar el contenido público
   return <>{children}</>;
 };
 
 /**
- * App Routes Component
- * Contains all the routes and their access protection
+ * Componente de Rutas de la Aplicación
+ * Contiene todas las rutas y su protección de acceso
  */
 const AppRoutes = () => {
-  // Initialize Firebase data when the app loads
+  // Inicializar datos de Firebase cuando la app carga
   useEffect(() => {
     initializeFirebaseData();
   }, []);
   
   return (
     <Routes>
-      {/* Public routes */}
+      {/* Rutas públicas */}
       <Route path="/" element={<Index />} />
       <Route path="/login" element={<PublicOnlyRoute><Login /></PublicOnlyRoute>} />
       <Route path="/register" element={<PublicOnlyRoute><Register /></PublicOnlyRoute>} />
       
-      {/* Protected routes - require authentication */}
+      {/* Rutas protegidas - requieren autenticación */}
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/jobs" element={<ProtectedRoute><JobsPage /></ProtectedRoute>} />
       <Route path="/jobs/:jobId" element={<ProtectedRoute><JobDetail /></ProtectedRoute>} />
@@ -103,15 +109,15 @@ const AppRoutes = () => {
       <Route path="/user/:userId" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
       <Route path="/create-job" element={<ProtectedRoute><CreateJobPage /></ProtectedRoute>} />
       
-      {/* 404 route */}
+      {/* Ruta 404 para manejar URLs no encontradas */}
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
 };
 
 /**
- * Main App Component
- * Sets up all providers and global configuration
+ * Componente App Principal
+ * Configura todos los proveedores y configuración global
  */
 const App = () => (
   <QueryClientProvider client={queryClient}>
