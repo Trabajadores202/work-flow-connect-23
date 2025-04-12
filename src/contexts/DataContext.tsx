@@ -9,7 +9,7 @@ import {
   getAllJobs as getFirebaseJobs
 } from '@/lib/firebaseUtils';
 
-// Make sure the UserType in DataContext matches or extends the AuthContext UserType
+// Asegúrate de que el UserType en DataContext coincida o extienda el UserType de AuthContext
 export type UserType = {
   id: string;
   name: string;
@@ -45,7 +45,7 @@ const DataContext = createContext<DataContextType | null>(null);
 export const useData = () => {
   const context = useContext(DataContext);
   if (!context) {
-    throw new Error('useData must be used within a DataProvider');
+    throw new Error('useData debe ser usado dentro de un DataProvider');
   }
   return context;
 };
@@ -60,9 +60,9 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   const loadData = async () => {
     setLoading(true);
     try {
-      // Load users
+      // Cargar usuarios
       const usersData = await getFirebaseUsers();
-      // Convert Firebase users to DataContext UserType
+      // Convertir usuarios de Firebase al tipo UserType de DataContext
       const convertedUsers = usersData.map(user => ({
         id: user.id,
         name: user.name || "",
@@ -76,18 +76,18 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       }));
       setUsers(convertedUsers);
       
-      // Load jobs
+      // Cargar trabajos
       const jobsData = await getFirebaseJobs();
       setJobs(jobsData);
       
-      // Load categories and skills
+      // Cargar categorías y habilidades
       const categories = await getFirebaseJobCategories();
       setJobCategories(categories);
       
       const skills = await getFirebaseSkillsList();
       setSkillsList(skills);
     } catch (error) {
-      console.error("Error loading data:", error);
+      console.error("Error al cargar datos:", error);
     } finally {
       setLoading(false);
     }
