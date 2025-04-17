@@ -20,7 +20,6 @@ import { ChatProvider } from "@/contexts/ChatContext";
 import { JobProvider } from "@/contexts/JobContext";
 import { DataProvider } from "@/contexts/DataContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
-import { initializeFirebaseData } from "@/lib/initializeFirebase";
 
 // Importar componentes de páginas
 import Index from "./pages/Index";
@@ -87,11 +86,6 @@ const PublicOnlyRoute = ({ children }: { children: React.ReactNode }) => {
  * Contiene todas las rutas y su protección de acceso
  */
 const AppRoutes = () => {
-  // Inicializar datos de Firebase cuando la app carga
-  useEffect(() => {
-    initializeFirebaseData();
-  }, []);
-  
   return (
     <Routes>
       {/* Rutas públicas */}
