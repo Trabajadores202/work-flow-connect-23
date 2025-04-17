@@ -3,31 +3,21 @@
  * Contexto de Chat
  * 
  * Este archivo gestiona toda la funcionalidad de chat incluyendo:
- * - Sincronización en tiempo real de chats usando listeners de Firebase
+ * - Simulación de tiempo real de chats usando un servicio temporal
  * - Envío y recepción de mensajes
  * - Creación de nuevos chats
  * - Gestión del estado del chat activo
- * 
- * La funcionalidad en tiempo real se implementa usando los listeners onSnapshot de Firebase
- * que actúan de manera similar a WebSockets al enviar actualizaciones a los clientes conectados.
  */
 
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { useAuth } from './AuthContext';
 import { 
-  getChats as getFirebaseChats,
-  createChat as createFirebaseChat,
-  sendMessage as sendFirebaseMessage,
-  addParticipantToChat as addFirebaseParticipantToChat
-} from '@/lib/firebaseUtils';
-import { 
-  collection, 
-  query, 
-  where, 
-  onSnapshot,
-  doc 
-} from "firebase/firestore";
-import { db } from '@/lib/firebase';
+  getChats as getServiceChats,
+  createChat as createServiceChat,
+  sendMessage as sendServiceMessage,
+  addParticipantToChat as addServiceParticipantToChat,
+  setupChatListener
+} from '@/lib/chatService';
 import { toast } from '@/components/ui/use-toast';
 
 // Definición de tipos para mensajes y chats
@@ -77,8 +67,8 @@ export const useChat = () => {
   return context;
 };
 
-// Usuarios en línea simulados - en una app real esto vendría de un sistema de presencia
-const MOCK_ONLINE_USERS = ['1', '2', '3'];
+// Usuarios en línea simulados
+const MOCK_ONLINE_USERS = ['user1', 'user2', 'user3'];
 
 // Props para el provider
 interface ChatProviderProps {
@@ -98,7 +88,6 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   const [activeChat, setActiveChat] = useState<ChatType | null>(null);
   const [loadingChats, setLoadingChats] = useState(true);
   const [onlineUsers] = useState<string[]>(MOCK_ONLINE_USERS);
-  const [unsubscribers, setUnsubscribers] = useState<(() => void)[]>([]);
 
   /**
    * Función para buscar un chat privado existente con un usuario específico
@@ -116,8 +105,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   };
 
   /**
-   * Función para cargar todos los chats y configurar los listeners en tiempo real
-   * Esta es la función principal que inicializa la funcionalidad de chat en tiempo real
+   * Función para cargar todos los chats y configurar los listeners
    */
   const loadChats = async () => {
     // Si no hay usuario autenticado, no se cargan chats
@@ -130,13 +118,10 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     setLoadingChats(true);
     try {
       console.log("Cargando chats para el usuario:", currentUser.id);
-      // Obtener chats iniciales de Firebase
-      const userChats = await getFirebaseChats(currentUser.id);
+      // Obtener chats iniciales
+      const userChats = await getServiceChats(currentUser.id);
       setChats(userChats);
       console.log("Chats cargados:", userChats.length);
-      
-      // Configurar los listeners en tiempo real para cada chat
-      setupChatListeners();
     } catch (error) {
       console.error("Error al cargar chats:", error);
       toast({
@@ -150,102 +135,40 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   };
 
   /**
-   * Función clave para actualizaciones en tiempo real
-   * Configura los listeners onSnapshot de Firebase para reaccionar a cambios en documentos de chat
-   * Esto reemplaza la necesidad de WebSockets/Socket.io tradicionales
+   * Configurar listeners para actualizaciones de chat
    */
-  const setupChatListeners = () => {
+  useEffect(() => {
     if (!currentUser) return;
-    
-    // Limpiar listeners existentes para evitar duplicados
-    unsubscribers.forEach(unsubscribe => unsubscribe());
-    setUnsubscribers([]);
-    
-    // Crear una consulta para chats donde el usuario actual es participante
-    const chatsQuery = query(
-      collection(db, "chats"),
-      where("participants", "array-contains", currentUser.id)
-    );
-    
-    // Crear un listener en tiempo real con onSnapshot
-    const unsubscribe = onSnapshot(chatsQuery, (snapshot) => {
-      console.log("Actualización en tiempo real de chats recibida");
+
+    console.log("Configurando listener para chats...");
+    const unsubscribe = setupChatListener((updatedChats) => {
+      console.log("Actualización de chats recibida:", updatedChats.length);
       
-      // Procesar cambios en la colección de chats
-      const updatedChats: ChatType[] = [];
+      // Filtrar solo los chats donde el usuario es participante
+      const userChats = updatedChats.filter(chat => 
+        chat.participants.includes(currentUser.id)
+      );
       
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        
-        // Obtener el último mensaje si hay mensajes
-        let lastMessage = null;
-        if (data.messages && data.messages.length > 0) {
-          lastMessage = data.messages[data.messages.length - 1];
-        }
-        
-        updatedChats.push({
-          id: doc.id,
-          name: data.name || "",
-          participants: data.participants || [],
-          messages: data.messages || [],
-          isGroup: data.isGroup || false,
-          lastMessage
-        });
-      });
+      setChats(userChats);
       
-      console.log("Actualización en tiempo real:", updatedChats.length, "chats");
-      setChats(updatedChats);
-      
-      // IMPORTANTE: Mejora clave - actualizar chat activo después de cada cambio para actualizaciones en tiempo real 
-      // dentro de una conversación
+      // Si hay un chat activo, actualizarlo también
       if (activeChat) {
-        const updatedActiveChat = updatedChats.find(chat => chat.id === activeChat.id);
+        const updatedActiveChat = userChats.find(chat => chat.id === activeChat.id);
         if (updatedActiveChat) {
-          console.log("Actualizando chat activo con nuevos mensajes en tiempo real");
           setActiveChat(updatedActiveChat);
         }
       }
-    }, (error) => {
-      console.error("Error en el listener de chats:", error);
-      toast({
-        variant: "destructive",
-        title: "Error de conexión",
-        description: "Ha ocurrido un problema con la conexión en tiempo real. Intenta recargar la página."
-      });
     });
     
-    setUnsubscribers([unsubscribe]);
-    console.log("Listener en tiempo real configurado correctamente");
-    return unsubscribe;
-  };
-
-  /**
-   * Effect para monitorear cambios en activeChat y asegurar que se mantenga actualizado
-   * Esto es crucial para mensajería en tiempo real dentro de un chat abierto
-   */
-  useEffect(() => {
-    if (activeChat && chats.length > 0) {
-      // Encontrar la versión más actualizada del chat activo en el array de chats
-      const refreshedChat = chats.find(chat => chat.id === activeChat.id);
-      if (refreshedChat && JSON.stringify(refreshedChat) !== JSON.stringify(activeChat)) {
-        console.log("Actualizando chat activo con datos más recientes");
-        setActiveChat(refreshedChat);
-      }
-    }
-  }, [chats]);
-
-  /**
-   * Configurar y limpiar listeners cuando el usuario cambia
-   */
-  useEffect(() => {
-    console.log("Usuario cambiado, configurando listeners...");
-    loadChats();
-    
-    // Función de limpieza cuando el componente se desmonta
     return () => {
-      console.log("Limpiando listeners de chat");
-      unsubscribers.forEach(unsubscribe => unsubscribe());
+      console.log("Limpiando listener de chats");
+      unsubscribe();
     };
+  }, [currentUser, activeChat]);
+
+  // Cargar chats iniciales cuando cambia el usuario
+  useEffect(() => {
+    loadChats();
   }, [currentUser]);
 
   /**
@@ -256,17 +179,15 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   };
 
   /**
-   * Función para enviar mensajes con actualizaciones en tiempo real
+   * Función para enviar mensajes
    */
   const sendMessage = async (chatId: string, content: string) => {
     if (!currentUser || !content.trim()) return;
     
     try {
       console.log("Enviando mensaje:", { chatId, content });
-      const newMessage = await sendFirebaseMessage(chatId, currentUser.id, content);
-      console.log("Mensaje enviado correctamente:", newMessage);
-      
-      // El listener onSnapshot detectará el cambio y actualizará el estado
+      await sendServiceMessage(chatId, currentUser.id, content);
+      console.log("Mensaje enviado correctamente");
     } catch (error) {
       console.error("Error al enviar mensaje:", error);
       toast({
@@ -289,11 +210,10 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     }
     
     try {
-      const newChat = await createFirebaseChat(participantIds, name);
+      const newChat = await createServiceChat(participantIds, name);
       console.log("Nuevo chat creado:", newChat);
       
-      // El nuevo chat se añadirá a través del listener en tiempo real
-      // Sin embargo, actualizar el chat activo inmediatamente
+      // Actualizar el chat activo inmediatamente
       setActiveChat(newChat);
     } catch (error) {
       console.error("Error al crear chat:", error);
@@ -325,10 +245,9 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       // Si no existe, crear un nuevo chat privado
       console.log("Creando nuevo chat privado con usuario:", participantId);
       const participants = [currentUser.id, participantId];
-      const newChat = await createFirebaseChat(participants);
+      const newChat = await createServiceChat(participants);
       console.log("Nuevo chat privado creado:", newChat);
       
-      // El chat se añadirá a través del listener en tiempo real
       setActiveChat(newChat);
     } catch (error) {
       console.error("Error al crear chat privado:", error);
@@ -352,12 +271,11 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       // Comprobar si el usuario ya está en el chat
       if (chat.participants.includes(participantId)) return false;
       
-      // Añadir participante a Firebase
-      await addFirebaseParticipantToChat(chatId, participantId);
+      // Añadir participante
+      const success = await addServiceParticipantToChat(chatId, participantId);
       console.log(`Participante ${participantId} añadido al chat ${chatId}`);
       
-      // El chat se actualizará a través del listener en tiempo real
-      return true;
+      return success;
     } catch (error) {
       console.error("Error al añadir participante:", error);
       toast({

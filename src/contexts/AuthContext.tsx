@@ -10,17 +10,16 @@
  */
 
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
-import { onAuthStateChanged } from "firebase/auth";
-import { auth, db } from "@/lib/firebase";
-import { doc, getDoc } from "firebase/firestore";
 import { toast } from "@/components/ui/use-toast";
 import { 
   registerUser, 
   loginUser, 
   logoutUser, 
-  updateUserProfile as updateFirebaseUserProfile,
-  uploadUserPhoto
-} from "@/lib/firebaseUtils";
+  updateUserProfile as updateUserProfileService,
+  uploadUserPhoto,
+  onAuthStateChanged,
+  loadSession
+} from "@/lib/authService";
 
 export type UserType = {
   id: string;
@@ -67,44 +66,17 @@ interface AuthProviderProps {
  * Maneja el estado de autenticación y proporciona funciones relacionadas
  */
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState<UserType | null>(null);
+  const [currentUser, setCurrentUser] = useState<UserType | null>(loadSession());
   const [loading, setLoading] = useState(true);
 
   // Efecto para escuchar cambios en el estado de autenticación
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        try {
-          const userDoc = await getDoc(doc(db, "users", user.uid));
-          if (userDoc.exists()) {
-            setCurrentUser({
-              id: user.uid,
-              ...userDoc.data() as Omit<UserType, "id">
-            });
-          } else {
-            setCurrentUser({
-              id: user.uid,
-              name: user.displayName || "",
-              email: user.email || "",
-              photoURL: user.photoURL || undefined,
-              role: "freelancer"
-            });
-          }
-        } catch (error) {
-          console.error("Error al obtener datos del usuario:", error);
-          toast({
-            variant: "destructive",
-            title: "Error",
-            description: "Error al cargar los datos del usuario"
-          });
-        }
-      } else {
-        setCurrentUser(null);
-      }
+    const unsubscribe = onAuthStateChanged((user) => {
+      setCurrentUser(user);
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    return unsubscribe;
   }, []);
 
   /**
@@ -182,7 +154,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     if (!currentUser) throw new Error('No hay usuario autenticado');
     
     try {
-      await updateFirebaseUserProfile(currentUser.id, data);
+      await updateUserProfileService(currentUser.id, data);
       setCurrentUser(prev => prev ? { ...prev, ...data } : null);
       toast({
         title: "Perfil actualizado",

@@ -14,15 +14,15 @@ import { UserType } from './AuthContext';
 import { 
   getAllJobs, 
   getJobById, 
-  createJob as createFirebaseJob,
-  updateJob as updateFirebaseJob,
-  deleteJob as deleteFirebaseJob,
+  createJob as createJobService,
+  updateJob as updateJobService,
+  deleteJob as deleteJobService,
   addCommentToJob, 
-  addReplyToComment as addFirebaseReplyToComment,
-  toggleJobLike as toggleFirebaseJobLike,
-  toggleSavedJob as toggleFirebaseSavedJob,
-  getSavedJobs as getFirebaseSavedJobs
-} from '@/lib/firebaseUtils';
+  addReplyToComment as addReplyToCommentService,
+  toggleJobLike as toggleJobLikeService,
+  toggleSavedJob as toggleSavedJobService,
+  getSavedJobs as getSavedJobsService
+} from '@/lib/jobService';
 
 export type ReplyType = {
   id: string;           // ID único de la respuesta
@@ -104,7 +104,7 @@ export const JobProvider: React.FC<JobProviderProps> = ({ children }) => {
   const [savedJobs, setSavedJobs] = useState<string[]>([]);
 
   /**
-   * Función para cargar todos los trabajos desde Firebase
+   * Función para cargar todos los trabajos
    */
   const loadJobs = async () => {
     setLoading(true);
@@ -128,10 +128,9 @@ export const JobProvider: React.FC<JobProviderProps> = ({ children }) => {
    */
   const createJob = async (jobData: Omit<JobType, 'id' | 'timestamp' | 'comments' | 'likes'>) => {
     try {
-      const newJob = await createFirebaseJob(jobData);
-      const typedNewJob = newJob as JobType;
-      setJobs(prevJobs => [...prevJobs, typedNewJob]);
-      return typedNewJob;
+      const newJob = await createJobService(jobData);
+      setJobs(prevJobs => [...prevJobs, newJob]);
+      return newJob;
     } catch (error) {
       console.error("Error al crear trabajo:", error);
       throw error;
@@ -143,7 +142,7 @@ export const JobProvider: React.FC<JobProviderProps> = ({ children }) => {
    */
   const updateJob = async (jobId: string, jobData: Partial<JobType>) => {
     try {
-      const updatedJob = await updateFirebaseJob(jobId, jobData);
+      const updatedJob = await updateJobService(jobId, jobData);
       
       setJobs(prevJobs => prevJobs.map(job => 
         job.id === jobId ? updatedJob : job
@@ -161,7 +160,7 @@ export const JobProvider: React.FC<JobProviderProps> = ({ children }) => {
    */
   const deleteJob = async (jobId: string) => {
     try {
-      const success = await deleteFirebaseJob(jobId);
+      const success = await deleteJobService(jobId);
       
       if (success) {
         setJobs(prevJobs => prevJobs.filter(job => job.id !== jobId));
@@ -197,7 +196,7 @@ export const JobProvider: React.FC<JobProviderProps> = ({ children }) => {
    */
   const addReplyToComment = async (jobId: string, commentId: string, content: string, user: UserType) => {
     try {
-      const newReply = await addFirebaseReplyToComment(jobId, commentId, content, user);
+      const newReply = await addReplyToCommentService(jobId, commentId, content, user);
       
       if (!newReply) return;
       
@@ -231,7 +230,7 @@ export const JobProvider: React.FC<JobProviderProps> = ({ children }) => {
    */
   const toggleSavedJob = async (jobId: string, userId: string) => {
     try {
-      const isNowSaved = await toggleFirebaseSavedJob(userId, jobId);
+      const isNowSaved = await toggleSavedJobService(userId, jobId);
       
       setSavedJobs(prev => {
         if (isNowSaved) {
@@ -250,7 +249,7 @@ export const JobProvider: React.FC<JobProviderProps> = ({ children }) => {
    */
   const getSavedJobs = async (userId: string) => {
     try {
-      const savedJobsData = await getFirebaseSavedJobs(userId);
+      const savedJobsData = await getSavedJobsService(userId);
       const savedJobIds = savedJobsData.map(job => job.id);
       setSavedJobs(savedJobIds);
       return savedJobsData;
@@ -265,18 +264,18 @@ export const JobProvider: React.FC<JobProviderProps> = ({ children }) => {
    */
   const toggleLike = async (jobId: string, userId: string) => {
     try {
-      await toggleFirebaseJobLike(jobId, userId);
+      const isNowLiked = await toggleJobLikeService(jobId, userId);
       
       setJobs(prevJobs => prevJobs.map(job => {
         if (job.id !== jobId) return job;
         
-        const userLiked = job.likes.includes(userId);
+        const likes = isNowLiked
+          ? [...job.likes, userId]
+          : job.likes.filter(id => id !== userId);
         
         return {
           ...job,
-          likes: userLiked
-            ? job.likes.filter(id => id !== userId)
-            : [...job.likes, userId]
+          likes
         };
       }));
     } catch (error) {

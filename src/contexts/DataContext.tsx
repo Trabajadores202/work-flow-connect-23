@@ -8,21 +8,14 @@
  * - Lista de habilidades disponibles
  * - Datos de trabajos
  * 
- * Estos datos se cargan desde Firebase y se mantienen disponibles para
- * todos los componentes que los necesiten.
+ * Estos datos ahora se cargan desde datos mock locales mientras 
+ * se planifica la migración a un backend personalizado.
  */
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { JobType } from './JobContext';
-import {
-  getAllUsers as getFirebaseUsers,
-  getUserById as getFirebaseUserById,
-  getJobCategories as getFirebaseJobCategories,
-  getSkillsList as getFirebaseSkillsList,
-  getAllJobs as getFirebaseJobs
-} from '@/lib/firebaseUtils';
 
-// Tipo de usuario para el DataContext (asegurándose que sea compatible con AuthContext)
+// Tipo de usuario para el DataContext
 export type UserType = {
   id: string;
   name: string;
@@ -55,6 +48,115 @@ export interface DataContextType {
 
 const DataContext = createContext<DataContextType | null>(null);
 
+// Datos mock para reemplazar los datos de Firebase
+const MOCK_USERS: UserType[] = [
+  {
+    id: "user1",
+    name: "Carlos Rodriguez",
+    email: "carlos@example.com",
+    role: "freelancer",
+    skills: ["JavaScript", "React", "Node.js", "MongoDB"],
+    bio: "Desarrollador web con 5 años de experiencia en React y Node.js",
+    photoURL: "https://randomuser.me/api/portraits/men/1.jpg",
+    hourlyRate: 25,
+    joinedAt: Date.now() - 86400000 * 30 // 30 días atrás
+  },
+  {
+    id: "user2",
+    name: "Ana Martinez",
+    email: "ana@example.com",
+    role: "freelancer",
+    skills: ["UI Design", "UX Research", "Figma", "Adobe XD"],
+    bio: "Diseñadora UX/UI especializada en experiencias móviles",
+    photoURL: "https://randomuser.me/api/portraits/women/1.jpg",
+    hourlyRate: 30,
+    joinedAt: Date.now() - 86400000 * 60 // 60 días atrás
+  },
+  {
+    id: "user3",
+    name: "Empresa ABC",
+    email: "contact@abc.com",
+    role: "client",
+    bio: "Empresa de desarrollo de software buscando talentos",
+    photoURL: "https://logo.clearbit.com/acme.com",
+    joinedAt: Date.now() - 86400000 * 45 // 45 días atrás
+  }
+];
+
+const MOCK_JOB_CATEGORIES = [
+  'Desarrollo Web',
+  'Diseño UX/UI',
+  'Desarrollo Móvil',
+  'Marketing Digital',
+  'Redacción y Traducción',
+  'Consultoría',
+  'Administración de Sistemas',
+  'Análisis de Datos'
+];
+
+const MOCK_SKILLS = [
+  'JavaScript',
+  'React',
+  'Node.js',
+  'HTML/CSS',
+  'Python',
+  'UI Design',
+  'UX Research',
+  'Figma',
+  'Adobe XD',
+  'Photoshop',
+  'React Native',
+  'Flutter',
+  'Swift',
+  'Kotlin',
+  'SEO',
+  'SEM',
+  'Social Media',
+  'Content Writing',
+  'Translation',
+  'WordPress',
+  'PHP',
+  'MongoDB',
+  'PostgreSQL',
+  'AWS',
+  'DevOps',
+  'Docker',
+  'Machine Learning'
+];
+
+const MOCK_JOBS: JobType[] = [
+  {
+    id: "job1",
+    title: "Desarrollo de sitio web responsive",
+    description: "Necesitamos desarrollar un sitio web responsive para nuestra empresa. El sitio debe ser moderno, rápido y fácil de usar.",
+    budget: 1500,
+    category: "Desarrollo Web",
+    skills: ["JavaScript", "React", "HTML/CSS"],
+    userId: "user3",
+    userName: "Empresa ABC",
+    userPhoto: "https://logo.clearbit.com/acme.com",
+    status: "open",
+    timestamp: Date.now() - 86400000 * 5, // 5 días atrás
+    comments: [],
+    likes: []
+  },
+  {
+    id: "job2",
+    title: "Diseño de interfaz para aplicación móvil",
+    description: "Buscamos un diseñador UX/UI para crear la interfaz de nuestra nueva aplicación móvil de fitness.",
+    budget: 1200,
+    category: "Diseño UX/UI",
+    skills: ["UI Design", "UX Research", "Figma"],
+    userId: "user3",
+    userName: "Empresa ABC",
+    userPhoto: "https://logo.clearbit.com/acme.com",
+    status: "open",
+    timestamp: Date.now() - 86400000 * 3, // 3 días atrás
+    comments: [],
+    likes: []
+  }
+];
+
 /**
  * Hook personalizado para acceder al contexto de datos
  */
@@ -68,7 +170,7 @@ export const useData = () => {
 
 /**
  * Proveedor del contexto de datos
- * Carga y proporciona acceso a datos compartidos de la aplicación
+ * Carga y proporciona acceso a datos mockeados de la aplicación
  */
 export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   const [users, setUsers] = useState<UserType[]>([]);
@@ -78,39 +180,27 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   const [skillsList, setSkillsList] = useState<string[]>([]);
 
   /**
-   * Función para cargar todos los datos desde Firebase
+   * Función para cargar todos los datos mock
    */
   const loadData = async () => {
     setLoading(true);
     try {
-      // Cargar usuarios
-      const usersData = await getFirebaseUsers();
-      // Convertir usuarios de Firebase al tipo UserType de DataContext
-      const convertedUsers = usersData.map(user => ({
-        id: user.id,
-        name: user.name || "",
-        email: user.email || "",
-        role: user.role as "freelancer" | "client" || "freelancer",
-        bio: user.bio,
-        photoURL: user.photoURL,
-        skills: user.skills,
-        hourlyRate: user.hourlyRate,
-        joinedAt: user.joinedAt
-      }));
-      setUsers(convertedUsers);
+      // Simulamos un retraso para imitar la carga desde un servidor
+      await new Promise(resolve => setTimeout(resolve, 500));
       
-      // Cargar trabajos
-      const jobsData = await getFirebaseJobs();
-      setJobs(jobsData);
+      // Cargar usuarios mock
+      setUsers(MOCK_USERS);
       
-      // Cargar categorías y habilidades
-      const categories = await getFirebaseJobCategories();
-      setJobCategories(categories);
+      // Cargar trabajos mock
+      setJobs(MOCK_JOBS);
       
-      const skills = await getFirebaseSkillsList();
-      setSkillsList(skills);
+      // Cargar categorías y habilidades mock
+      setJobCategories(MOCK_JOB_CATEGORIES);
+      setSkillsList(MOCK_SKILLS);
+      
+      console.log("Datos mock cargados correctamente");
     } catch (error) {
-      console.error("Error al cargar datos:", error);
+      console.error("Error al cargar datos mock:", error);
     } finally {
       setLoading(false);
     }
