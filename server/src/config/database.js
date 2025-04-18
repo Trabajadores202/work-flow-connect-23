@@ -20,4 +20,18 @@ const sequelize = new Sequelize(
   }
 );
 
+// Función para probar la conexión y crear la base de datos si no existe
+async function testConnection() {
+  try {
+    await sequelize.authenticate();
+    console.log('Conexión a PostgreSQL establecida correctamente.');
+    return true;
+  } catch (error) {
+    console.error('No se pudo conectar a la base de datos:', error);
+    return false;
+  }
+}
+
+testConnection();
+
 module.exports = sequelize;

@@ -14,6 +14,9 @@ const path = require('path');
 // Importar configuración de la base de datos
 const db = require('./config/database');
 
+// Importar modelos para asegurar que se registren
+const models = require('./models');
+
 // Importar rutas
 const authRoutes = require('./routes/auth.routes');
 const userRoutes = require('./routes/user.routes');
@@ -35,31 +38,36 @@ const io = socketIo(server, {
   }
 });
 
-// Configurar Redis para Socket.io
-const pubClient = createClient({ url: `redis://${process.env.REDIS_HOST}:${process.env.REDIS_PORT}` });
-const subClient = pubClient.duplicate();
+// Configurar Redis para Socket.io (con manejo de errores)
+let pubClient;
+let subClient;
 
-// Manejar errores de Redis
-pubClient.on('error', (err) => {
-  console.error('Error de Redis:', err);
-});
-
-async function startServer() {
+async function setupRedis() {
   try {
-    // Conectar Redis
+    pubClient = createClient({ url: `redis://${process.env.REDIS_HOST}:${process.env.REDIS_PORT}` });
+    subClient = pubClient.duplicate();
+    
+    // Manejar errores de Redis
+    pubClient.on('error', (err) => {
+      console.error('Error de Redis:', err);
+    });
+    
     await pubClient.connect();
     await subClient.connect();
-    console.log('Conectado a Redis');
+    console.log('Conectado a Redis correctamente');
     
     // Configurar adapter de Redis para Socket.io
     io.adapter(createAdapter(pubClient, subClient));
-    
-    // Conectar a la base de datos y sincronizar modelos
-    await db.authenticate();
-    console.log('Conexión a PostgreSQL establecida');
-    await db.sync({ alter: true });
-    console.log('Modelos sincronizados con la base de datos');
-    
+    return true;
+  } catch (error) {
+    console.error('No se pudo conectar a Redis:', error);
+    console.log('Continuando sin Redis (funcionalidad de chat limitada)');
+    return false;
+  }
+}
+
+async function startServer() {
+  try {
     // Middleware
     app.use(cors());
     app.use(helmet());
@@ -70,10 +78,22 @@ async function startServer() {
     // Configurar rutas estáticas
     app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
     
+    // Conectar a la base de datos y sincronizar modelos
+    await db.authenticate();
+    console.log('Conexión a PostgreSQL establecida');
+    
+    // Sincronizar modelos con la base de datos (force:true en desarrollo solo)
+    // En producción deberías usar { alter: true } o { force: false }
+    await db.sync({ force: process.env.NODE_ENV === 'development' });
+    console.log('Modelos sincronizados con la base de datos');
+    
+    // Intentar conectar Redis (no crítico para la aplicación)
+    await setupRedis();
+    
     // Rutas API
     app.use('/api/auth', authRoutes);
-    app.use('/api/users', verifyToken, userRoutes);
-    app.use('/api/jobs', jobRoutes); // Algunas rutas públicas, otras protegidas
+    app.use('/api/users', userRoutes); // Algunas rutas requieren autenticación
+    app.use('/api/jobs', jobRoutes);   // Algunas rutas públicas, otras protegidas
     app.use('/api/chats', verifyToken, chatRoutes);
     
     // Importar controlador de socket
@@ -85,7 +105,26 @@ async function startServer() {
       res.status(200).json({
         status: 'success',
         message: 'Servidor funcionando correctamente',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        environment: process.env.NODE_ENV
+      });
+    });
+    
+    // Capturar todas las peticiones no manejadas
+    app.use('*', (req, res) => {
+      res.status(404).json({
+        success: false,
+        message: 'Ruta no encontrada'
+      });
+    });
+    
+    // Manejador global de errores
+    app.use((err, req, res, next) => {
+      console.error('Error global:', err);
+      res.status(500).json({
+        success: false,
+        message: 'Error interno del servidor',
+        error: process.env.NODE_ENV === 'development' ? err.message : undefined
       });
     });
     
@@ -93,6 +132,7 @@ async function startServer() {
     const PORT = process.env.PORT || 5000;
     server.listen(PORT, () => {
       console.log(`Servidor corriendo en el puerto ${PORT}`);
+      console.log(`Modo: ${process.env.NODE_ENV}`);
     });
     
   } catch (error) {
