@@ -6,12 +6,8 @@
  */
 
 import { apiRequest } from './api';
-import { 
-  UserType, 
-  JobType, 
-  CommentType, 
-  ReplyType 
-} from '@/contexts/DataContext';
+import { UserType } from '@/contexts/DataContext';
+import { JobType, CommentType, ReplyType } from '@/contexts/JobContext';
 
 // Estado local para almacenar trabajos (simulando una base de datos)
 let JOBS: JobType[] = [
@@ -28,7 +24,9 @@ let JOBS: JobType[] = [
     status: "open",
     timestamp: Date.now() - 86400000 * 5, // 5 días atrás
     comments: [],
-    likes: []
+    likes: [],
+    createdAt: new Date(Date.now() - 86400000 * 5).toISOString(),
+    updatedAt: new Date(Date.now() - 86400000 * 5).toISOString()
   },
   {
     id: "job2",
@@ -43,7 +41,9 @@ let JOBS: JobType[] = [
     status: "open",
     timestamp: Date.now() - 86400000 * 3, // 3 días atrás
     comments: [],
-    likes: []
+    likes: [],
+    createdAt: new Date(Date.now() - 86400000 * 3).toISOString(),
+    updatedAt: new Date(Date.now() - 86400000 * 3).toISOString()
   }
 ];
 
@@ -57,8 +57,37 @@ const SAVED_JOBS: Record<string, string[]> = {
  * Obtener todos los trabajos
  */
 export const getAllJobs = async (): Promise<JobType[]> => {
-  // Simular latencia de red
-  await new Promise(resolve => setTimeout(resolve, 500));
+  try {
+    // Try to get jobs from API first
+    const response = await apiRequest('/jobs');
+    if (response && response.jobs && Array.isArray(response.jobs)) {
+      console.log('Jobs from API:', response.jobs);
+      
+      // Convert API response to JobType format
+      return response.jobs.map((job: any) => ({
+        id: job.id,
+        title: job.title,
+        description: job.description,
+        budget: job.budget,
+        category: job.category,
+        skills: job.skills || [],
+        status: job.status,
+        userId: job.userId,
+        userName: job.user?.name || "Usuario",
+        userPhoto: job.user?.photoURL,
+        timestamp: new Date(job.createdAt).getTime(),
+        comments: job.comments || [],
+        likes: job.likes || [],
+        createdAt: job.createdAt,
+        updatedAt: job.updatedAt
+      }));
+    }
+  } catch (error) {
+    console.error("Error al obtener trabajos desde la API:", error);
+    console.log("Usando datos locales como respaldo");
+  }
+  
+  // Fallback to local data
   return [...JOBS];
 };
 
@@ -66,7 +95,35 @@ export const getAllJobs = async (): Promise<JobType[]> => {
  * Obtener un trabajo por su ID
  */
 export const getJobById = async (jobId: string): Promise<JobType | null> => {
-  await new Promise(resolve => setTimeout(resolve, 300));
+  try {
+    // Try to get job from API first
+    const response = await apiRequest(`/jobs/${jobId}`);
+    if (response && response.job) {
+      const job = response.job;
+      return {
+        id: job.id,
+        title: job.title,
+        description: job.description,
+        budget: job.budget,
+        category: job.category,
+        skills: job.skills || [],
+        status: job.status,
+        userId: job.userId,
+        userName: job.user?.name || "Usuario",
+        userPhoto: job.user?.photoURL,
+        timestamp: new Date(job.createdAt).getTime(),
+        comments: job.comments || [],
+        likes: job.likes || [],
+        createdAt: job.createdAt,
+        updatedAt: job.updatedAt
+      };
+    }
+  } catch (error) {
+    console.error("Error al obtener trabajo desde la API:", error);
+    console.log("Usando datos locales como respaldo");
+  }
+  
+  // Fallback to local data
   const job = JOBS.find(job => job.id === jobId);
   return job ? { ...job } : null;
 };
@@ -75,6 +132,43 @@ export const getJobById = async (jobId: string): Promise<JobType | null> => {
  * Crear un nuevo trabajo
  */
 export const createJob = async (jobData: Omit<JobType, "id" | "timestamp" | "comments" | "likes">): Promise<JobType> => {
+  try {
+    // Try to create job via API first
+    const response = await apiRequest('/jobs', {
+      method: 'POST',
+      body: JSON.stringify(jobData)
+    });
+    
+    if (response && response.job) {
+      const job = response.job;
+      const newJob: JobType = {
+        id: job.id,
+        title: job.title,
+        description: job.description,
+        budget: job.budget,
+        category: job.category,
+        skills: job.skills || [],
+        status: job.status,
+        userId: job.userId,
+        userName: job.user?.name || jobData.userName,
+        userPhoto: job.user?.photoURL || jobData.userPhoto,
+        timestamp: new Date(job.createdAt).getTime(),
+        comments: [],
+        likes: [],
+        createdAt: job.createdAt,
+        updatedAt: job.updatedAt
+      };
+      
+      // Update local cache
+      JOBS = [...JOBS, newJob];
+      return newJob;
+    }
+  } catch (error) {
+    console.error("Error al crear trabajo en la API:", error);
+    console.log("Usando almacenamiento local como respaldo");
+  }
+  
+  // Fallback to local data creation
   await new Promise(resolve => setTimeout(resolve, 700));
   
   const newJob: JobType = {
@@ -82,7 +176,9 @@ export const createJob = async (jobData: Omit<JobType, "id" | "timestamp" | "com
     id: `job${Date.now()}`,
     timestamp: Date.now(),
     comments: [],
-    likes: []
+    likes: [],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
   };
   
   JOBS = [...JOBS, newJob];
@@ -120,6 +216,32 @@ export const deleteJob = async (jobId: string): Promise<boolean> => {
  * Añadir un comentario a un trabajo
  */
 export const addCommentToJob = async (jobId: string, content: string, user: UserType): Promise<CommentType> => {
+  try {
+    // Try to add comment via API first
+    const response = await apiRequest(`/jobs/${jobId}/comments`, {
+      method: 'POST',
+      body: JSON.stringify({ content })
+    });
+    
+    if (response && response.comment) {
+      const comment = response.comment;
+      return {
+        id: comment.id,
+        jobId,
+        userId: user.id,
+        userName: user.name,
+        userPhoto: user.photoURL,
+        content,
+        timestamp: new Date(comment.createdAt).getTime(),
+        replies: []
+      };
+    }
+  } catch (error) {
+    console.error("Error al añadir comentario en la API:", error);
+    console.log("Usando almacenamiento local como respaldo");
+  }
+  
+  // Fallback to local data
   await new Promise(resolve => setTimeout(resolve, 300));
   
   const jobIndex = JOBS.findIndex(job => job.id === jobId);
@@ -152,6 +274,31 @@ export const addReplyToComment = async (
   content: string, 
   user: UserType
 ): Promise<ReplyType | undefined> => {
+  try {
+    // Try to add reply via API first
+    const response = await apiRequest(`/jobs/${jobId}/comments/${commentId}/replies`, {
+      method: 'POST',
+      body: JSON.stringify({ content })
+    });
+    
+    if (response && response.reply) {
+      const reply = response.reply;
+      return {
+        id: reply.id,
+        commentId,
+        userId: user.id,
+        userName: user.name,
+        userPhoto: user.photoURL,
+        content,
+        timestamp: new Date(reply.createdAt).getTime()
+      };
+    }
+  } catch (error) {
+    console.error("Error al añadir respuesta en la API:", error);
+    console.log("Usando almacenamiento local como respaldo");
+  }
+  
+  // Fallback to local data
   await new Promise(resolve => setTimeout(resolve, 300));
   
   const jobIndex = JOBS.findIndex(job => job.id === jobId);

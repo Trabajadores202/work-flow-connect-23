@@ -48,8 +48,8 @@ const io = new Server(server, {
 });
 
 // Importar controladores de Socket.IO
-const socketController = require('./controllers/socket.controller');
-socketController.initSocket(io);
+const { initSocket } = require('./controllers/socket.controller');
+initSocket(io);
 
 // Iniciar servidor
 const startServer = async () => {

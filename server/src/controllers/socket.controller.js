@@ -1,8 +1,9 @@
 
 const { User, Chat, Message } = require('../models');
 const jwt = require('jsonwebtoken');
+const { Op } = require('sequelize');
 
-module.exports = (io) => {
+const initSocket = (io) => {
   // Mapeo de usuarios a sus sockets
   const userSockets = new Map();
   
@@ -221,3 +222,5 @@ module.exports = (io) => {
     }
   });
 };
+
+module.exports = { initSocket };

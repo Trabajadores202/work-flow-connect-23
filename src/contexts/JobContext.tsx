@@ -1,3 +1,4 @@
+
 /**
  * Contexto de Trabajos
  * 
@@ -9,7 +10,7 @@
  */
 
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
-import { UserType } from './DataContext';
+import { UserType } from '@/contexts/DataContext';
 import { 
   getAllJobs, 
   getJobById, 
@@ -55,9 +56,11 @@ export type JobType = {
   userName: string;     // Nombre del usuario que creó el trabajo
   userPhoto?: string;   // Foto de perfil del usuario (opcional)
   timestamp: number;    // Marca de tiempo cuando se creó el trabajo
-  status: 'open' | 'in-progress' | 'completed'; // Estado actual del trabajo
+  status: 'open' | 'in-progress' | 'completed' | 'assigned' | 'cancelled'; // Estado actual del trabajo
   comments: CommentType[]; // Comentarios en el trabajo
   likes: string[];      // Array de IDs de usuarios que dieron like
+  createdAt?: string;   // Fecha de creación (formato ISO)
+  updatedAt?: string;   // Fecha de última actualización (formato ISO)
 };
 
 type JobContextType = {
@@ -109,7 +112,16 @@ export const JobProvider: React.FC<JobProviderProps> = ({ children }) => {
     setLoading(true);
     try {
       const jobsData = await getAllJobs();
-      setJobs(jobsData);
+      // Aseguramos que todos los trabajos tienen los campos requeridos
+      const formattedJobs: JobType[] = jobsData.map(job => ({
+        ...job,
+        likes: job.likes || [],
+        comments: job.comments || [],
+        timestamp: job.timestamp || new Date(job.createdAt || Date.now()).getTime(),
+        userName: job.userName || (job.user?.name || "Usuario"),
+        status: job.status || 'open'
+      }));
+      setJobs(formattedJobs);
     } catch (error) {
       console.error("Error al cargar trabajos:", error);
     } finally {
@@ -128,8 +140,17 @@ export const JobProvider: React.FC<JobProviderProps> = ({ children }) => {
   const createJob = async (jobData: Omit<JobType, 'id' | 'timestamp' | 'comments' | 'likes'>) => {
     try {
       const newJob = await createJobService(jobData);
-      setJobs(prevJobs => [...prevJobs, newJob]);
-      return newJob;
+      // Aseguramos que tenga todos los campos necesarios
+      const formattedJob: JobType = {
+        ...newJob,
+        likes: [],
+        comments: [],
+        timestamp: newJob.timestamp || new Date(newJob.createdAt || Date.now()).getTime(),
+        status: newJob.status as JobType['status']
+      };
+      
+      setJobs(prevJobs => [...prevJobs, formattedJob]);
+      return formattedJob;
     } catch (error) {
       console.error("Error al crear trabajo:", error);
       throw error;
@@ -141,13 +162,28 @@ export const JobProvider: React.FC<JobProviderProps> = ({ children }) => {
    */
   const updateJob = async (jobId: string, jobData: Partial<JobType>) => {
     try {
+      // Aquí convertimos el estado si es necesario
+      if (jobData.status) {
+        const status = jobData.status as JobType['status'];
+        jobData.status = status;
+      }
+      
       const updatedJob = await updateJobService(jobId, jobData);
       
+      // Aseguramos que tenga todos los campos necesarios
+      const formattedJob: JobType = {
+        ...updatedJob,
+        likes: updatedJob.likes || [],
+        comments: updatedJob.comments || [],
+        timestamp: updatedJob.timestamp || new Date(updatedJob.createdAt || Date.now()).getTime(),
+        status: updatedJob.status as JobType['status']
+      };
+      
       setJobs(prevJobs => prevJobs.map(job => 
-        job.id === jobId ? updatedJob : job
+        job.id === jobId ? formattedJob : job
       ));
       
-      return updatedJob;
+      return formattedJob;
     } catch (error) {
       console.error("Error al actualizar trabajo:", error);
       throw error;
@@ -179,9 +215,17 @@ export const JobProvider: React.FC<JobProviderProps> = ({ children }) => {
     try {
       const newComment = await addCommentToJob(jobId, content, user);
       
+      // Asegurar que el comentario tiene el formato correcto
+      const formattedComment: CommentType = {
+        ...newComment,
+        userName: newComment.userName || user.name,
+        timestamp: newComment.timestamp || Date.now(),
+        replies: newComment.replies || []
+      };
+      
       setJobs(prevJobs => prevJobs.map(job => 
         job.id === jobId 
-          ? { ...job, comments: [...job.comments, newComment] }
+          ? { ...job, comments: [...job.comments, formattedComment] }
           : job
       ));
     } catch (error) {
@@ -199,6 +243,13 @@ export const JobProvider: React.FC<JobProviderProps> = ({ children }) => {
       
       if (!newReply) return;
       
+      // Asegurar que la respuesta tiene el formato correcto
+      const formattedReply: ReplyType = {
+        ...newReply,
+        userName: newReply.userName || user.name,
+        timestamp: newReply.timestamp || Date.now()
+      };
+      
       setJobs(prevJobs => prevJobs.map(job => {
         if (job.id !== jobId) return job;
         
@@ -206,7 +257,7 @@ export const JobProvider: React.FC<JobProviderProps> = ({ children }) => {
           ...job,
           comments: job.comments.map(comment => 
             comment.id === commentId
-              ? { ...comment, replies: [...comment.replies, newReply] }
+              ? { ...comment, replies: [...comment.replies, formattedReply] }
               : comment
           )
         };
