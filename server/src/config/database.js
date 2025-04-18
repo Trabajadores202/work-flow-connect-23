@@ -16,6 +16,13 @@ const sequelize = new Sequelize(
       min: 0,
       acquire: 30000,
       idle: 10000
+    },
+    define: {
+      timestamps: true
+    },
+    // Prevenir errores de conexión
+    dialectOptions: {
+      connectTimeout: 60000
     }
   }
 );
@@ -32,6 +39,19 @@ async function testConnection() {
   }
 }
 
-testConnection();
+async function syncModels(force = false) {
+  try {
+    await sequelize.sync({ force });
+    console.log(`Modelos sincronizados ${force ? '(tablas recreadas)' : '(estructura actualizada)'}`);
+    return true;
+  } catch (error) {
+    console.error('Error al sincronizar modelos:', error);
+    return false;
+  }
+}
 
-module.exports = sequelize;
+module.exports = {
+  sequelize,
+  testConnection,
+  syncModels
+};

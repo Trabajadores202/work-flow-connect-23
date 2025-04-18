@@ -11,37 +11,27 @@
 
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { toast } from "@/components/ui/use-toast";
+import { apiRequest } from "@/lib/api";
+import { UserType } from "@/contexts/DataContext";
 import { 
-  registerUser, 
-  loginUser, 
-  logoutUser, 
-  updateUserProfile as updateUserProfileService,
-  uploadUserPhoto,
-  onAuthStateChanged,
-  loadSession
+  saveToken, 
+  getToken, 
+  removeToken, 
+  saveUserData, 
+  removeUserData, 
+  getUserData,
+  clearSession 
 } from "@/lib/authService";
-
-export type UserType = {
-  id: string;
-  name: string;
-  email: string;
-  photoURL?: string;
-  bio?: string;
-  skills?: string[];
-  role: 'freelancer' | 'client';
-  savedJobs?: string[];
-  hourlyRate?: number;
-  joinedAt?: number;
-};
+import { disconnectSocket } from '@/lib/socket';
 
 interface AuthContextType {
-  currentUser: UserType | null; // Usuario actualmente autenticado
-  loading: boolean; // Indica si está cargando el estado de autenticación
-  login: (email: string, password: string) => Promise<void>; // Función para iniciar sesión
-  register: (email: string, password: string, name: string) => Promise<void>; // Función para registrar un nuevo usuario
-  logout: () => Promise<void>; // Función para cerrar sesión
-  updateUserProfile: (data: Partial<UserType>) => Promise<void>; // Función para actualizar el perfil del usuario
-  uploadProfilePhoto: (file: File) => Promise<string>; // Función para subir una foto de perfil
+  currentUser: UserType | null;
+  loading: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  register: (email: string, password: string, name: string, role?: 'freelancer' | 'client') => Promise<void>;
+  logout: () => Promise<void>;
+  updateUserProfile: (data: Partial<UserType>) => Promise<void>;
+  uploadProfilePhoto: (file: File) => Promise<string>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -63,35 +53,52 @@ interface AuthProviderProps {
 
 /**
  * Proveedor del contexto de autenticación
- * Maneja el estado de autenticación y proporciona funciones relacionadas
  */
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState<UserType | null>(loadSession());
+  const [currentUser, setCurrentUser] = useState<UserType | null>(getUserData());
   const [loading, setLoading] = useState(true);
 
-  // Efecto para escuchar cambios en el estado de autenticación
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged((user) => {
-      setCurrentUser(user);
+    // Verificar sesión al cargar
+    const verifySession = async () => {
+      const token = getToken();
+      if (token) {
+        try {
+          const response = await apiRequest('/auth/verify');
+          const user = response.user;
+          setCurrentUser(user);
+          saveUserData(user);
+        } catch (error) {
+          console.error('Error al verificar sesión:', error);
+          clearSession();
+        }
+      }
       setLoading(false);
-    });
+    };
 
-    return unsubscribe;
+    verifySession();
   }, []);
 
   /**
-   * Función para iniciar sesión con correo y contraseña
+   * Función para iniciar sesión
    */
   const login = async (email: string, password: string) => {
     setLoading(true);
     try {
-      const user = await loginUser(email, password);
+      const response = await apiRequest('/auth/login', 'POST', { email, password });
+      const { user, token } = response;
+      
+      // Guardar token y datos de usuario
+      saveToken(token);
+      saveUserData(user);
       setCurrentUser(user);
+      
       toast({
         title: "Inicio de sesión exitoso",
         description: "Bienvenido a WorkFlowConnect",
       });
     } catch (error) {
+      console.error('Error de inicio de sesión:', error);
       toast({
         variant: "destructive",
         title: "Error de inicio de sesión",
@@ -104,18 +111,31 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   /**
-   * Función para registrar un nuevo usuario
+   * Función para registrar nuevo usuario
    */
-  const register = async (email: string, password: string, name: string) => {
+  const register = async (email: string, password: string, name: string, role: 'freelancer' | 'client' = 'freelancer') => {
     setLoading(true);
     try {
-      const user = await registerUser(email, password, name);
+      const response = await apiRequest('/auth/register', 'POST', { 
+        email, 
+        password, 
+        name,
+        role 
+      });
+      
+      const { user, token } = response;
+      
+      // Guardar token y datos de usuario
+      saveToken(token);
+      saveUserData(user);
       setCurrentUser(user);
+      
       toast({
         title: "Registro exitoso",
         description: "¡Bienvenido a WorkFlowConnect!",
       });
     } catch (error) {
+      console.error('Error de registro:', error);
       toast({
         variant: "destructive",
         title: "Error de registro",
@@ -132,13 +152,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
    */
   const logout = async () => {
     try {
-      await logoutUser();
+      // Llamar al endpoint de logout
+      if (getToken()) {
+        await apiRequest('/auth/logout', 'POST');
+      }
+      
+      // Limpiar datos locales
+      clearSession();
+      disconnectSocket();
       setCurrentUser(null);
+      
       toast({
         title: "Sesión cerrada",
         description: "Has cerrado sesión correctamente",
       });
     } catch (error) {
+      console.error('Error al cerrar sesión:', error);
+      // Aún así, limpiamos los datos locales
+      clearSession();
+      setCurrentUser(null);
+      
       toast({
         variant: "destructive",
         title: "Error",
@@ -148,14 +181,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   /**
-   * Función para actualizar el perfil del usuario
+   * Función para actualizar el perfil
    */
   const updateUserProfile = async (data: Partial<UserType>) => {
     if (!currentUser) throw new Error('No hay usuario autenticado');
     
     try {
-      await updateUserProfileService(currentUser.id, data);
-      setCurrentUser(prev => prev ? { ...prev, ...data } : null);
+      const response = await apiRequest('/users/profile', 'PUT', data);
+      const updatedUser = response.user;
+      
+      saveUserData(updatedUser);
+      setCurrentUser(updatedUser);
+      
       toast({
         title: "Perfil actualizado",
         description: "Tus cambios han sido guardados",
@@ -171,23 +208,44 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   /**
-   * Función para subir una foto de perfil
+   * Función para subir foto de perfil
    */
   const uploadProfilePhoto = async (file: File) => {
     if (!currentUser) throw new Error('No hay usuario autenticado');
     
     try {
-      console.log("Iniciando proceso de subida de foto de perfil");
-      const photoURL = await uploadUserPhoto(currentUser.id, file);
+      // Para subir archivos necesitamos usar FormData en lugar de JSON
+      const formData = new FormData();
+      formData.append('photo', file);
       
-      setCurrentUser(prev => prev ? { ...prev, photoURL } : null);
+      // Implementar la lógica de subida usando fetch directamente, ya que apiRequest es para JSON
+      const token = getToken();
+      const response = await fetch(`http://localhost:5000/api/users/upload-photo`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Error al subir la foto');
+      }
+      
+      const data = await response.json();
+      const photoURL = data.photoURL;
+      
+      // Actualizar usuario con la nueva foto
+      const updatedUser = { ...currentUser, photoURL };
+      saveUserData(updatedUser);
+      setCurrentUser(updatedUser);
       
       toast({
         title: "Foto actualizada",
         description: "Tu foto de perfil ha sido actualizada",
       });
       
-      console.log("Foto de perfil actualizada correctamente:", photoURL);
       return photoURL;
     } catch (error) {
       console.error("Error en uploadProfilePhoto:", error);

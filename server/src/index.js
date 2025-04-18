@@ -10,9 +10,10 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const bodyParser = require('body-parser');
 const path = require('path');
+const fs = require('fs');
 
 // Importar configuración de la base de datos
-const db = require('./config/database');
+const { sequelize, testConnection, syncModels } = require('./config/database');
 
 // Importar modelos para asegurar que se registren
 const models = require('./models');
@@ -30,7 +31,7 @@ const { verifyToken } = require('./middleware/auth');
 const app = express();
 const server = http.createServer(app);
 
-// Configurar Socket.io con Redis
+// Configurar Socket.io
 const io = socketIo(server, {
   cors: {
     origin: '*',
@@ -66,6 +67,22 @@ async function setupRedis() {
   }
 }
 
+// Asegurar que existan los directorios de uploads
+function ensureDirectoriesExist() {
+  const uploadDirs = [
+    path.join(__dirname, '../uploads'),
+    path.join(__dirname, '../uploads/profiles'),
+    path.join(__dirname, '../uploads/jobs')
+  ];
+  
+  uploadDirs.forEach(dir => {
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+      console.log(`Directorio creado: ${dir}`);
+    }
+  });
+}
+
 async function startServer() {
   try {
     // Middleware
@@ -75,17 +92,25 @@ async function startServer() {
     app.use(bodyParser.json());
     app.use(bodyParser.urlencoded({ extended: true }));
     
+    // Verificar y crear directorios necesarios
+    ensureDirectoriesExist();
+    
     // Configurar rutas estáticas
     app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
     
     // Conectar a la base de datos y sincronizar modelos
-    await db.authenticate();
-    console.log('Conexión a PostgreSQL establecida');
+    const dbConnected = await testConnection();
+    if (!dbConnected) {
+      console.error('Error crítico: No se pudo establecer conexión a la base de datos.');
+      process.exit(1);
+    }
     
-    // Sincronizar modelos con la base de datos (force:true en desarrollo solo)
-    // En producción deberías usar { alter: true } o { force: false }
-    await db.sync({ force: process.env.NODE_ENV === 'development' });
-    console.log('Modelos sincronizados con la base de datos');
+    // Sincronizar modelos con la base de datos
+    // En desarrollo usamos force:true para recrear tablas
+    // En producción usamos alter:true para mantener datos
+    const forceSync = process.env.NODE_ENV === 'development' && process.env.FORCE_SYNC === 'true';
+    await syncModels(forceSync);
+    console.log(`Modelos sincronizados (force: ${forceSync})`);
     
     // Intentar conectar Redis (no crítico para la aplicación)
     await setupRedis();
