@@ -1,4 +1,3 @@
-
 /**
  * Servicio de Gestión de Trabajos
  * 
@@ -6,8 +5,13 @@
  * mientras se implementa un backend personalizado.
  */
 
-import { JobType, CommentType, ReplyType } from "@/contexts/JobContext";
-import { UserType } from "@/contexts/AuthContext";
+import { apiRequest } from './api';
+import { 
+  UserType, 
+  JobType, 
+  CommentType, 
+  ReplyType 
+} from '@/contexts/DataContext';
 
 // Estado local para almacenar trabajos (simulando una base de datos)
 let JOBS: JobType[] = [

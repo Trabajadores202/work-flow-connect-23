@@ -1,57 +1,39 @@
 
 const { Sequelize } = require('sequelize');
+require('dotenv').config();
 
-// Crear instancia de Sequelize
+// Configurar conexión a la base de datos
 const sequelize = new Sequelize(
-  process.env.DB_NAME,
-  process.env.DB_USER,
-  process.env.DB_PASSWORD,
+  process.env.DB_NAME || 'workflowconnect',
+  process.env.DB_USER || 'postgres',
+  process.env.DB_PASSWORD || 'postgres',
   {
-    host: process.env.DB_HOST,
-    port: process.env.DB_PORT,
+    host: process.env.DB_HOST || 'localhost',
     dialect: 'postgres',
-    logging: process.env.NODE_ENV === 'development' ? console.log : false,
+    port: process.env.DB_PORT || 5432,
+    logging: console.log,
     pool: {
       max: 5,
       min: 0,
       acquire: 30000,
       idle: 10000
-    },
-    define: {
-      timestamps: true
-    },
-    // Prevenir errores de conexión
-    dialectOptions: {
-      connectTimeout: 60000
     }
   }
 );
 
-// Función para probar la conexión y crear la base de datos si no existe
-async function testConnection() {
+// Función para probar la conexión
+const testConnection = async () => {
   try {
     await sequelize.authenticate();
-    console.log('Conexión a PostgreSQL establecida correctamente.');
+    console.log('Conexión a la base de datos establecida correctamente.');
     return true;
   } catch (error) {
-    console.error('No se pudo conectar a la base de datos:', error);
+    console.error('Error al conectar con la base de datos:', error);
     return false;
   }
-}
-
-async function syncModels(force = false) {
-  try {
-    await sequelize.sync({ force });
-    console.log(`Modelos sincronizados ${force ? '(tablas recreadas)' : '(estructura actualizada)'}`);
-    return true;
-  } catch (error) {
-    console.error('Error al sincronizar modelos:', error);
-    return false;
-  }
-}
+};
 
 module.exports = {
   sequelize,
-  testConnection,
-  syncModels
+  testConnection
 };

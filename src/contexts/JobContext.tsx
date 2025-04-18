@@ -1,4 +1,3 @@
-
 /**
  * Contexto de Trabajos
  * 
@@ -10,7 +9,7 @@
  */
 
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
-import { UserType } from './AuthContext';
+import { UserType } from './DataContext';
 import { 
   getAllJobs, 
   getJobById, 

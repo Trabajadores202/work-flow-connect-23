@@ -1,5 +1,6 @@
 
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import { apiRequest } from "@/lib/api";
 
 // Definición de tipos
 export interface UserType {
@@ -13,6 +14,7 @@ export interface UserType {
   hourlyRate?: number;
   isOnline?: boolean;
   lastSeen?: string;
+  joinedAt?: number;
 }
 
 export interface JobType {
@@ -29,6 +31,9 @@ export interface JobType {
   user?: UserType;
   likedBy?: UserType[];
   comments?: CommentType[];
+  // Compatibility with JobContext
+  userName: string;
+  timestamp: number;
 }
 
 export interface CommentType {
@@ -61,6 +66,10 @@ export interface ChatType {
   updatedAt: string;
   messages?: MessageType[];
   participants?: UserType[];
+  lastMessage?: {
+    content: string;
+    timestamp: number;
+  };
 }
 
 export interface MessageType {
@@ -94,6 +103,12 @@ interface DataContextType {
   setLikedJobs: React.Dispatch<React.SetStateAction<string[]>>;
   loading: boolean;
   error: string | null;
+  // Added methods for compatibility
+  getUserById: (userId: string) => UserType | undefined;
+  getAllUsers: () => UserType[];
+  jobCategories: string[];
+  skillsList: string[];
+  loadData: () => Promise<void>;
 }
 
 // Crear contexto
@@ -117,9 +132,92 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Categorías de trabajo y habilidades disponibles
+  const jobCategories = [
+    "Desarrollo Web",
+    "Diseño Gráfico",
+    "Marketing Digital",
+    "Redacción",
+    "Traducción",
+    "Administración",
+    "Contabilidad",
+    "Video y Animación",
+    "Música y Audio",
+    "Programación",
+    "Análisis de Datos",
+    "Otro"
+  ];
+  
+  const skillsList = [
+    "HTML", "CSS", "JavaScript", "TypeScript", "React", "Angular", "Vue.js", "Node.js", "Python", 
+    "PHP", "WordPress", "Shopify", "SEO", "SEM", "Photoshop", "Illustrator", "Adobe XD", "Figma",
+    "Copywriting", "Marketing de contenidos", "Redes sociales", "Email marketing", "PPC",
+    "Traducción", "Corrección de textos", "Gestión de proyectos", "Excel", "Word", "PowerPoint",
+    "Contabilidad", "Impuestos", "After Effects", "Premiere Pro", "Animación 3D", "Unity",
+    "Producción musical", "Mezcla de audio", "Java", "C#", "Swift", "Kotlin", "Flutter",
+    "React Native", "SQL", "MongoDB", "Firebase", "AWS", "Azure", "Google Cloud",
+    "Data Science", "Machine Learning", "Tableau", "Power BI"
+  ];
+
   // Cargar datos mock para desarrollo
-  React.useEffect(() => {
-    // Simular carga de datos
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  // Métodos añadidos para compatibilidad con el resto de la app
+  const getUserById = (userId: string): UserType | undefined => {
+    return users.find(user => user.id === userId);
+  };
+
+  const getAllUsers = (): UserType[] => {
+    return users;
+  };
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      
+      // Intenta cargar usuarios desde la API
+      try {
+        const response = await apiRequest('/users');
+        if (response && response.users) {
+          setUsers(response.users);
+        } else {
+          loadMockUsers();
+        }
+      } catch (error) {
+        console.error("Error al cargar usuarios reales:", error);
+        loadMockUsers();
+      }
+      
+      // Intenta cargar trabajos desde la API
+      try {
+        const response = await apiRequest('/jobs');
+        if (response && response.jobs) {
+          // Convertir el formato de la API al formato esperado por la aplicación
+          const formattedJobs = response.jobs.map((job: any) => ({
+            ...job,
+            timestamp: new Date(job.createdAt).getTime(),
+            userName: job.user?.name || "Usuario"
+          }));
+          setJobs(formattedJobs);
+        } else {
+          loadMockJobs();
+        }
+      } catch (error) {
+        console.error("Error al cargar trabajos reales:", error);
+        loadMockJobs();
+      }
+      
+    } catch (error) {
+      console.error("Error general al cargar datos:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Funciones para cargar datos mock como respaldo
+  const loadMockUsers = () => {
     setUsers([
       {
         id: '1',
@@ -131,7 +229,8 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         photoURL: '/placeholder.svg',
         hourlyRate: 25,
         isOnline: true,
-        lastSeen: new Date().toISOString()
+        lastSeen: new Date().toISOString(),
+        joinedAt: Date.now() - 90 * 24 * 60 * 60 * 1000 // 90 días atrás
       },
       {
         id: '2',
@@ -140,7 +239,8 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         role: 'client',
         photoURL: '/placeholder.svg',
         isOnline: false,
-        lastSeen: new Date(Date.now() - 86400000).toISOString() // Hace 1 día
+        lastSeen: new Date(Date.now() - 86400000).toISOString(), // Hace 1 día
+        joinedAt: Date.now() - 60 * 24 * 60 * 60 * 1000 // 60 días atrás
       },
       {
         id: '3',
@@ -150,10 +250,14 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         bio: 'Empresa dedicada al desarrollo de software',
         photoURL: '/placeholder.svg',
         isOnline: true,
-        lastSeen: new Date().toISOString()
+        lastSeen: new Date().toISOString(),
+        joinedAt: Date.now() - 30 * 24 * 60 * 60 * 1000 // 30 días atrás
       }
     ]);
+    console.log("Usuarios mock cargados");
+  };
 
+  const loadMockJobs = () => {
     setJobs([
       {
         id: '1',
@@ -163,8 +267,10 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         category: 'Desarrollo Web',
         skills: ['React', 'Node.js', 'MongoDB'],
         status: 'open',
-        userId: '3', // Empresa ABC
-        createdAt: new Date(Date.now() - 2 * 86400000).toISOString(), // Hace 2 días
+        userId: '3',
+        userName: 'Empresa ABC',
+        timestamp: Date.now() - 2 * 86400000,
+        createdAt: new Date(Date.now() - 2 * 86400000).toISOString(),
         updatedAt: new Date(Date.now() - 2 * 86400000).toISOString(),
         user: {
           id: '3',
@@ -182,8 +288,10 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         category: 'Diseño Gráfico',
         skills: ['Illustrator', 'Photoshop', 'Branding'],
         status: 'open',
-        userId: '2', // Ana López
-        createdAt: new Date(Date.now() - 5 * 86400000).toISOString(), // Hace 5 días
+        userId: '2',
+        userName: 'Ana López',
+        timestamp: Date.now() - 5 * 86400000,
+        createdAt: new Date(Date.now() - 5 * 86400000).toISOString(),
         updatedAt: new Date(Date.now() - 5 * 86400000).toISOString(),
         user: {
           id: '2',
@@ -194,14 +302,18 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         }
       }
     ]);
+    console.log("Trabajos mock cargados");
+  };
 
+  // Cargar datos de comentarios mock
+  useEffect(() => {
     setComments([
       {
         id: '1',
         content: 'Me interesa este proyecto. Tengo experiencia en React y Node.js.',
-        userId: '1', // Juan Pérez
+        userId: '1',
         jobId: '1',
-        createdAt: new Date(Date.now() - 1 * 86400000).toISOString(), // Hace 1 día
+        createdAt: new Date(Date.now() - 1 * 86400000).toISOString(),
         updatedAt: new Date(Date.now() - 1 * 86400000).toISOString(),
         user: {
           id: '1',
@@ -217,9 +329,9 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       {
         id: '1',
         content: 'Hola Juan, gracias por tu interés. ¿Podrías enviarnos tu portafolio?',
-        userId: '3', // Empresa ABC
+        userId: '3',
         commentId: '1',
-        createdAt: new Date(Date.now() - 12 * 3600000).toISOString(), // Hace 12 horas
+        createdAt: new Date(Date.now() - 12 * 3600000).toISOString(),
         updatedAt: new Date(Date.now() - 12 * 3600000).toISOString(),
         user: {
           id: '3',
@@ -237,9 +349,13 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         id: '1',
         name: '',
         isGroup: false,
-        lastMessageAt: new Date(Date.now() - 2 * 3600000).toISOString(), // Hace 2 horas
-        createdAt: new Date(Date.now() - 3 * 86400000).toISOString(), // Hace 3 días
+        lastMessageAt: new Date(Date.now() - 2 * 3600000).toISOString(),
+        createdAt: new Date(Date.now() - 3 * 86400000).toISOString(),
         updatedAt: new Date(Date.now() - 2 * 3600000).toISOString(),
+        lastMessage: {
+          content: '¿Les parece bien mañana a las 10am?',
+          timestamp: Date.now() - 2 * 3600000
+        },
         participants: [
           {
             id: '1',
@@ -264,10 +380,10 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       {
         id: '1',
         content: 'Hola, me gustaría discutir el proyecto con ustedes.',
-        userId: '1', // Juan Pérez
+        userId: '1',
         chatId: '1',
         read: true,
-        createdAt: new Date(Date.now() - 3 * 86400000).toISOString(), // Hace 3 días
+        createdAt: new Date(Date.now() - 3 * 86400000).toISOString(),
         updatedAt: new Date(Date.now() - 3 * 86400000).toISOString(),
         user: {
           id: '1',
@@ -280,10 +396,10 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       {
         id: '2',
         content: 'Claro, podemos agendar una videollamada para hablar de los detalles.',
-        userId: '3', // Empresa ABC
+        userId: '3',
         chatId: '1',
         read: true,
-        createdAt: new Date(Date.now() - 2.5 * 86400000).toISOString(), // Hace 2.5 días
+        createdAt: new Date(Date.now() - 2.5 * 86400000).toISOString(),
         updatedAt: new Date(Date.now() - 2.5 * 86400000).toISOString(),
         user: {
           id: '3',
@@ -296,10 +412,10 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       {
         id: '3',
         content: '¿Les parece bien mañana a las 10am?',
-        userId: '1', // Juan Pérez
+        userId: '1',
         chatId: '1',
         read: true,
-        createdAt: new Date(Date.now() - 2 * 3600000).toISOString(), // Hace 2 horas
+        createdAt: new Date(Date.now() - 2 * 3600000).toISOString(),
         updatedAt: new Date(Date.now() - 2 * 3600000).toISOString(),
         user: {
           id: '1',
@@ -333,7 +449,13 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       likedJobs,
       setLikedJobs,
       loading,
-      error
+      error,
+      // Métodos añadidos
+      getUserById,
+      getAllUsers,
+      jobCategories,
+      skillsList,
+      loadData
     }}>
       {children}
     </DataContext.Provider>

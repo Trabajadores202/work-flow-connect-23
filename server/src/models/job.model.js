@@ -29,7 +29,7 @@ const Job = sequelize.define('Job', {
     defaultValue: []
   },
   status: {
-    type: DataTypes.ENUM('open', 'assigned', 'completed', 'cancelled'),
+    type: DataTypes.ENUM('open', 'in-progress', 'completed'),
     defaultValue: 'open'
   }
 }, {
