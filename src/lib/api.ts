@@ -38,6 +38,7 @@ export async function apiRequest(
   }
   
   try {
+    console.log(`API Request: ${method} ${API_URL}${endpoint}`, body);
     const response = await fetch(`${API_URL}${endpoint}`, options);
     
     // Verificar si la respuesta es exitosa
@@ -52,7 +53,9 @@ export async function apiRequest(
       throw error;
     }
     
-    return await response.json();
+    const responseData = await response.json();
+    console.log(`API Response: ${API_URL}${endpoint}`, responseData);
+    return responseData;
   } catch (error) {
     console.error('Error en la petición API:', error);
     throw error;

@@ -10,13 +10,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { X } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { JobType } from '@/contexts/JobContext';
 
 const JobsPage = () => {
   const { jobs, loading, jobCategories } = useData();
   const { currentUser } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
-  const [filteredJobs, setFilteredJobs] = useState(jobs);
+  const [filteredJobs, setFilteredJobs] = useState<JobType[]>(jobs);
 
   useEffect(() => {
     let results = jobs;
@@ -89,7 +90,21 @@ const JobsPage = () => {
         <div className="space-y-4">
           {filteredJobs.length > 0 ? (
             filteredJobs.map(job => (
-              <JobCard key={job.id} job={job} />
+              <JobCard key={job.id} job={{
+                id: job.id,
+                title: job.title,
+                description: job.description,
+                budget: job.budget,
+                category: job.category,
+                skills: job.skills,
+                status: job.status === 'assigned' ? 'in-progress' : 
+                        (job.status === 'cancelled' ? 'completed' : job.status),
+                userId: job.userId,
+                userName: job.userName,
+                userPhoto: job.userPhoto,
+                timestamp: job.timestamp,
+                likes: job.likes || []
+              }} />
             ))
           ) : (
             <div className="text-center py-8 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">

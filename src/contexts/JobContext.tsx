@@ -1,4 +1,3 @@
-
 /**
  * Contexto de Trabajos
  * 
@@ -23,6 +22,7 @@ import {
   toggleSavedJob as toggleSavedJobService,
   getSavedJobs as getSavedJobsService
 } from '@/lib/jobService';
+import { toast } from '@/components/ui/use-toast';
 
 export type ReplyType = {
   id: string;           // ID único de la respuesta
@@ -79,6 +79,14 @@ type JobContextType = {
   loadJobs: () => Promise<void>; // Método para recargar trabajos
 };
 
+// Tipos para el contexto
+interface DataContextType {
+  getUserById: (userId: string) => UserType | undefined;
+  getAllUsers: () => UserType[];
+  jobCategories: string[];
+  skillsList: string[];
+}
+
 const JobContext = createContext<JobContextType | null>(null);
 
 /**
@@ -118,7 +126,7 @@ export const JobProvider: React.FC<JobProviderProps> = ({ children }) => {
         likes: job.likes || [],
         comments: job.comments || [],
         timestamp: job.timestamp || new Date(job.createdAt || Date.now()).getTime(),
-        userName: job.userName || (job.user?.name || "Usuario"),
+        userName: job.userName || "Usuario",
         status: job.status || 'open'
       }));
       setJobs(formattedJobs);
@@ -139,7 +147,9 @@ export const JobProvider: React.FC<JobProviderProps> = ({ children }) => {
    */
   const createJob = async (jobData: Omit<JobType, 'id' | 'timestamp' | 'comments' | 'likes'>) => {
     try {
+      console.log('Creating job with data:', jobData);
       const newJob = await createJobService(jobData);
+      
       // Aseguramos que tenga todos los campos necesarios
       const formattedJob: JobType = {
         ...newJob,
@@ -150,9 +160,18 @@ export const JobProvider: React.FC<JobProviderProps> = ({ children }) => {
       };
       
       setJobs(prevJobs => [...prevJobs, formattedJob]);
+      toast({
+        title: "Éxito",
+        description: "La propuesta se ha creado correctamente."
+      });
       return formattedJob;
     } catch (error) {
       console.error("Error al crear trabajo:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Ocurrió un error al crear la propuesta. Inténtalo de nuevo."
+      });
       throw error;
     }
   };

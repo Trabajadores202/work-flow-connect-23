@@ -10,6 +10,8 @@ exports.createJob = async (req, res) => {
     const { title, description, budget, category, skills } = req.body;
     const userId = req.user.id;
     
+    console.log('Creating job with data:', { title, description, budget, category, skills, userId });
+    
     // Verificar que el usuario es un cliente
     if (req.user.role !== 'client') {
       return res.status(403).json({
@@ -21,11 +23,13 @@ exports.createJob = async (req, res) => {
     const job = await Job.create({
       title,
       description,
-      budget,
+      budget: parseFloat(budget),
       category,
-      skills,
+      skills: Array.isArray(skills) ? skills : [],
       userId
     });
+    
+    console.log('Job created successfully:', job.id);
     
     // Cargar el trabajo con información del usuario
     const jobWithUser = await Job.findByPk(job.id, {

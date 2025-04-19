@@ -134,9 +134,12 @@ export const getJobById = async (jobId: string): Promise<JobType | null> => {
 export const createJob = async (jobData: Omit<JobType, "id" | "timestamp" | "comments" | "likes">): Promise<JobType> => {
   try {
     // Try to create job via API first
-    const response = await apiRequest('/jobs', {
-      method: 'POST',
-      body: JSON.stringify(jobData)
+    const response = await apiRequest('/jobs', 'POST', {
+      title: jobData.title,
+      description: jobData.description,
+      budget: jobData.budget,
+      category: jobData.category,
+      skills: jobData.skills
     });
     
     if (response && response.job) {
@@ -163,26 +166,28 @@ export const createJob = async (jobData: Omit<JobType, "id" | "timestamp" | "com
       JOBS = [...JOBS, newJob];
       return newJob;
     }
+    
+    throw new Error('Error al crear trabajo en la API');
   } catch (error) {
     console.error("Error al crear trabajo en la API:", error);
     console.log("Usando almacenamiento local como respaldo");
+    
+    // Fallback to local data creation
+    await new Promise(resolve => setTimeout(resolve, 700));
+    
+    const newJob: JobType = {
+      ...jobData,
+      id: `job${Date.now()}`,
+      timestamp: Date.now(),
+      comments: [],
+      likes: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    
+    JOBS = [...JOBS, newJob];
+    return { ...newJob };
   }
-  
-  // Fallback to local data creation
-  await new Promise(resolve => setTimeout(resolve, 700));
-  
-  const newJob: JobType = {
-    ...jobData,
-    id: `job${Date.now()}`,
-    timestamp: Date.now(),
-    comments: [],
-    likes: [],
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  };
-  
-  JOBS = [...JOBS, newJob];
-  return { ...newJob };
 };
 
 /**
@@ -218,10 +223,7 @@ export const deleteJob = async (jobId: string): Promise<boolean> => {
 export const addCommentToJob = async (jobId: string, content: string, user: UserType): Promise<CommentType> => {
   try {
     // Try to add comment via API first
-    const response = await apiRequest(`/jobs/${jobId}/comments`, {
-      method: 'POST',
-      body: JSON.stringify({ content })
-    });
+    const response = await apiRequest(`/jobs/${jobId}/comments`, 'POST', { content });
     
     if (response && response.comment) {
       const comment = response.comment;
@@ -236,33 +238,34 @@ export const addCommentToJob = async (jobId: string, content: string, user: User
         replies: []
       };
     }
+    throw new Error('Error al añadir comentario en la API');
   } catch (error) {
     console.error("Error al añadir comentario en la API:", error);
     console.log("Usando almacenamiento local como respaldo");
+    
+    // Fallback to local data
+    await new Promise(resolve => setTimeout(resolve, 300));
+    
+    const jobIndex = JOBS.findIndex(job => job.id === jobId);
+    if (jobIndex === -1) {
+      throw new Error('Trabajo no encontrado');
+    }
+    
+    const commentId = `comment_${Date.now()}`;
+    const newComment: CommentType = {
+      id: commentId,
+      jobId,
+      userId: user.id,
+      userName: user.name,
+      userPhoto: user.photoURL,
+      content,
+      timestamp: Date.now(),
+      replies: []
+    };
+    
+    JOBS[jobIndex].comments.push(newComment);
+    return { ...newComment };
   }
-  
-  // Fallback to local data
-  await new Promise(resolve => setTimeout(resolve, 300));
-  
-  const jobIndex = JOBS.findIndex(job => job.id === jobId);
-  if (jobIndex === -1) {
-    throw new Error('Trabajo no encontrado');
-  }
-  
-  const commentId = `comment_${Date.now()}`;
-  const newComment: CommentType = {
-    id: commentId,
-    jobId,
-    userId: user.id,
-    userName: user.name,
-    userPhoto: user.photoURL,
-    content,
-    timestamp: Date.now(),
-    replies: []
-  };
-  
-  JOBS[jobIndex].comments.push(newComment);
-  return { ...newComment };
 };
 
 /**
@@ -276,10 +279,7 @@ export const addReplyToComment = async (
 ): Promise<ReplyType | undefined> => {
   try {
     // Try to add reply via API first
-    const response = await apiRequest(`/jobs/${jobId}/comments/${commentId}/replies`, {
-      method: 'POST',
-      body: JSON.stringify({ content })
-    });
+    const response = await apiRequest(`/comments/${commentId}/replies`, 'POST', { content });
     
     if (response && response.reply) {
       const reply = response.reply;
@@ -293,36 +293,37 @@ export const addReplyToComment = async (
         timestamp: new Date(reply.createdAt).getTime()
       };
     }
+    throw new Error('Error al añadir respuesta en la API');
   } catch (error) {
     console.error("Error al añadir respuesta en la API:", error);
     console.log("Usando almacenamiento local como respaldo");
+    
+    // Fallback to local data
+    await new Promise(resolve => setTimeout(resolve, 300));
+    
+    const jobIndex = JOBS.findIndex(job => job.id === jobId);
+    if (jobIndex === -1) {
+      throw new Error('Trabajo no encontrado');
+    }
+    
+    const commentIndex = JOBS[jobIndex].comments.findIndex(comment => comment.id === commentId);
+    if (commentIndex === -1) {
+      throw new Error('Comentario no encontrado');
+    }
+    
+    const newReply: ReplyType = {
+      id: `reply_${Date.now()}`,
+      commentId,
+      userId: user.id,
+      userName: user.name,
+      userPhoto: user.photoURL,
+      content,
+      timestamp: Date.now()
+    };
+    
+    JOBS[jobIndex].comments[commentIndex].replies.push(newReply);
+    return { ...newReply };
   }
-  
-  // Fallback to local data
-  await new Promise(resolve => setTimeout(resolve, 300));
-  
-  const jobIndex = JOBS.findIndex(job => job.id === jobId);
-  if (jobIndex === -1) {
-    throw new Error('Trabajo no encontrado');
-  }
-  
-  const commentIndex = JOBS[jobIndex].comments.findIndex(comment => comment.id === commentId);
-  if (commentIndex === -1) {
-    throw new Error('Comentario no encontrado');
-  }
-  
-  const newReply: ReplyType = {
-    id: `reply_${Date.now()}`,
-    commentId,
-    userId: user.id,
-    userName: user.name,
-    userPhoto: user.photoURL,
-    content,
-    timestamp: Date.now()
-  };
-  
-  JOBS[jobIndex].comments[commentIndex].replies.push(newReply);
-  return { ...newReply };
 };
 
 /**

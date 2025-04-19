@@ -32,9 +32,9 @@ const Job = sequelize.define('Job', {
     type: DataTypes.ENUM('open', 'in-progress', 'completed', 'assigned', 'cancelled'),
     defaultValue: 'open'
   },
-  likes: {
-    type: DataTypes.ARRAY(DataTypes.STRING),
-    defaultValue: []
+  userId: {
+    type: DataTypes.UUID,
+    allowNull: false
   }
 }, {
   timestamps: true
