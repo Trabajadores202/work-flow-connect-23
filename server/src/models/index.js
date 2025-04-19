@@ -36,6 +36,15 @@ Job.belongsToMany(User, { through: 'JobLikes', as: 'likedBy', foreignKey: 'jobId
 User.belongsToMany(Job, { through: 'SavedJobs', as: 'savedJobs', foreignKey: 'userId' });
 Job.belongsToMany(User, { through: 'SavedJobs', as: 'savedBy', foreignKey: 'jobId' });
 
+// Asegurarse de que las tablas estén sincronizadas
+sequelize.sync({ alter: true })
+  .then(() => {
+    console.log('Tablas sincronizadas correctamente');
+  })
+  .catch(error => {
+    console.error('Error al sincronizar tablas:', error);
+  });
+
 // Exportar los modelos
 module.exports = {
   sequelize,

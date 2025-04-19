@@ -34,7 +34,11 @@ const Job = sequelize.define('Job', {
   },
   userId: {
     type: DataTypes.UUID,
-    allowNull: false
+    allowNull: false,
+    references: {
+      model: 'Users', // Nombre de la tabla en la base de datos
+      key: 'id'
+    }
   }
 }, {
   timestamps: true

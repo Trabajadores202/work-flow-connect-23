@@ -1,3 +1,4 @@
+
 const { Job, User, Comment, Reply } = require('../models');
 const { Op } = require('sequelize');
 
@@ -19,6 +20,15 @@ exports.createJob = async (req, res) => {
       });
     }
     
+    // Validar datos requeridos
+    if (!title || !description || !budget || !category) {
+      return res.status(400).json({
+        success: false,
+        message: 'Faltan campos requeridos (título, descripción, presupuesto, categoría)'
+      });
+    }
+    
+    // Crear el trabajo
     const job = await Job.create({
       title,
       description,

@@ -23,6 +23,7 @@ const CreateJobPage = () => {
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [currentSkill, setCurrentSkill] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
   
   const { jobCategories, skillsList } = useData();
   const { createJob } = useJobs();
@@ -40,23 +41,39 @@ const CreateJobPage = () => {
     setSelectedSkills(selectedSkills.filter(s => s !== skill));
   };
 
+  const validateForm = () => {
+    if (!title.trim()) {
+      setErrorMsg('El título es obligatorio');
+      return false;
+    }
+    if (!description.trim()) {
+      setErrorMsg('La descripción es obligatoria');
+      return false;
+    }
+    if (!category) {
+      setErrorMsg('La categoría es obligatoria');
+      return false;
+    }
+    if (!budget || Number(budget) <= 0) {
+      setErrorMsg('El presupuesto debe ser mayor a 0');
+      return false;
+    }
+    if (!currentUser) {
+      setErrorMsg('Debes iniciar sesión para crear una propuesta');
+      return false;
+    }
+    setErrorMsg('');
+    return true;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!title || !description || !category || !budget) {
+    if (!validateForm()) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Por favor, completa todos los campos obligatorios."
-      });
-      return;
-    }
-
-    if (!currentUser) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Debes iniciar sesión para crear una propuesta."
+        description: errorMsg
       });
       return;
     }
@@ -64,6 +81,15 @@ const CreateJobPage = () => {
     setIsSubmitting(true);
 
     try {
+      console.log("Enviando datos para crear trabajo:", {
+        title,
+        description,
+        budget: Number(budget),
+        category,
+        skills: selectedSkills,
+        userId: currentUser?.id
+      });
+
       // Create the job using the JobContext's createJob function
       await createJob({
         title,
@@ -86,10 +112,16 @@ const CreateJobPage = () => {
       navigate('/jobs');
     } catch (error) {
       console.error("Error creating job:", error);
+      let errorMessage = "Ocurrió un error al crear la propuesta. Inténtalo de nuevo.";
+      
+      if (error instanceof Error) {
+        errorMessage = error.message || errorMessage;
+      }
+      
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Ocurrió un error al crear la propuesta. Inténtalo de nuevo."
+        description: errorMessage
       });
     } finally {
       setIsSubmitting(false);

@@ -1,8 +1,8 @@
 /**
  * Servicio de Gestión de Trabajos
  * 
- * Este servicio proporciona funcionalidades temporales para gestionar trabajos
- * mientras se implementa un backend personalizado.
+ * Este servicio proporciona funcionalidades para gestionar trabajos
+ * a través de la API o usando datos locales como fallback.
  */
 
 import { apiRequest } from './api';
@@ -71,7 +71,7 @@ export const getAllJobs = async (): Promise<JobType[]> => {
         budget: job.budget,
         category: job.category,
         skills: job.skills || [],
-        status: job.status,
+        status: job.status || 'open',
         userId: job.userId,
         userName: job.user?.name || "Usuario",
         userPhoto: job.user?.photoURL,
@@ -94,7 +94,6 @@ export const getAllJobs = async (): Promise<JobType[]> => {
  */
 export const getJobById = async (jobId: string): Promise<JobType | null> => {
   try {
-    // Try to get job from API first
     const response = await apiRequest(`/jobs/${jobId}`);
     if (response && response.job) {
       const job = response.job;
@@ -105,7 +104,7 @@ export const getJobById = async (jobId: string): Promise<JobType | null> => {
         budget: job.budget,
         category: job.category,
         skills: job.skills || [],
-        status: job.status,
+        status: job.status || 'open',
         userId: job.userId,
         userName: job.user?.name || "Usuario",
         userPhoto: job.user?.photoURL,
@@ -116,10 +115,10 @@ export const getJobById = async (jobId: string): Promise<JobType | null> => {
         updatedAt: job.updatedAt
       };
     }
-    return null;
+    throw new Error('No se pudo encontrar el trabajo solicitado');
   } catch (error) {
     console.error("Error al obtener trabajo desde la API:", error);
-    return null;
+    throw error;
   }
 };
 
@@ -127,6 +126,8 @@ export const getJobById = async (jobId: string): Promise<JobType | null> => {
  * Crear un nuevo trabajo
  */
 export const createJob = async (jobData: Omit<JobType, "id" | "timestamp" | "comments" | "likes">): Promise<JobType> => {
+  console.log("JobService: Creating job with data:", jobData);
+  
   try {
     // Try to create job via API
     const response = await apiRequest('/jobs', 'POST', {
@@ -137,6 +138,14 @@ export const createJob = async (jobData: Omit<JobType, "id" | "timestamp" | "com
       skills: jobData.skills
     });
     
+    if (!response) {
+      throw new Error('No se recibió respuesta del servidor');
+    }
+    
+    if (!response.success) {
+      throw new Error(response.message || 'Error al crear trabajo');
+    }
+    
     if (response && response.job) {
       const job = response.job;
       return {
@@ -146,7 +155,7 @@ export const createJob = async (jobData: Omit<JobType, "id" | "timestamp" | "com
         budget: job.budget,
         category: job.category,
         skills: job.skills || [],
-        status: job.status,
+        status: job.status || 'open',
         userId: job.userId,
         userName: job.user?.name || jobData.userName,
         userPhoto: job.user?.photoURL || jobData.userPhoto,
@@ -158,7 +167,7 @@ export const createJob = async (jobData: Omit<JobType, "id" | "timestamp" | "com
       };
     }
     
-    throw new Error('Error al crear trabajo en la API');
+    throw new Error('Error al crear trabajo en la API: formato de respuesta inválido');
   } catch (error) {
     console.error("Error al crear trabajo en la API:", error);
     throw error;
