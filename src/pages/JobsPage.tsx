@@ -13,25 +13,36 @@ import { Link } from 'react-router-dom';
 import { JobType } from '@/contexts/JobContext';
 
 const JobsPage = () => {
-  const { jobs, loading, jobCategories } = useData();
+  const { jobs: dataJobs, loading, jobCategories } = useData();
   const { currentUser } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
-  const [filteredJobs, setFilteredJobs] = useState<JobType[]>(jobs);
+  const [filteredJobs, setFilteredJobs] = useState<JobType[]>([]);
 
   useEffect(() => {
-    let results = jobs;
+    // Convert DataContext jobs to JobContext compatible format
+    const formattedJobs = dataJobs.map(job => ({
+      ...job,
+      likes: job.likes || [],
+      comments: job.comments || [],
+      status: job.status || 'open'
+    })) as JobType[];
+    
+    let results = formattedJobs;
+    
     if (searchQuery) {
       results = results.filter(job => 
         job.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
         job.description.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
+    
     if (categoryFilter !== 'all') {
       results = results.filter(job => job.category === categoryFilter);
     }
+    
     setFilteredJobs(results);
-  }, [jobs, searchQuery, categoryFilter]);
+  }, [dataJobs, searchQuery, categoryFilter]);
 
   if (loading) {
     return <MainLayout>Cargando...</MainLayout>;
@@ -90,21 +101,7 @@ const JobsPage = () => {
         <div className="space-y-4">
           {filteredJobs.length > 0 ? (
             filteredJobs.map(job => (
-              <JobCard key={job.id} job={{
-                id: job.id,
-                title: job.title,
-                description: job.description,
-                budget: job.budget,
-                category: job.category,
-                skills: job.skills,
-                status: job.status === 'assigned' ? 'in-progress' : 
-                        (job.status === 'cancelled' ? 'completed' : job.status),
-                userId: job.userId,
-                userName: job.userName,
-                userPhoto: job.userPhoto,
-                timestamp: job.timestamp,
-                likes: job.likes || []
-              }} />
+              <JobCard key={job.id} job={job} />
             ))
           ) : (
             <div className="text-center py-8 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">

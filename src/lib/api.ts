@@ -43,7 +43,10 @@ export async function apiRequest(
     
     // Verificar si la respuesta es exitosa
     if (!response.ok) {
-      const errorData = await response.json();
+      const errorData = await response.json().catch(() => ({ 
+        message: `Error HTTP: ${response.status} ${response.statusText}` 
+      }));
+      
       const error = new Error(errorData.message || 'Error en la petición') as Error & {
         status: number;
         data: any;
