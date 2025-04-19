@@ -77,18 +77,16 @@ export const getAllJobs = async (): Promise<JobType[]> => {
         userPhoto: job.user?.photoURL,
         timestamp: new Date(job.createdAt).getTime(),
         comments: job.comments || [],
-        likes: job.likes || [],
+        likes: job.likedBy?.map((user: any) => user.id) || [],
         createdAt: job.createdAt,
         updatedAt: job.updatedAt
       }));
     }
+    return [];
   } catch (error) {
     console.error("Error al obtener trabajos desde la API:", error);
-    console.log("Usando datos locales como respaldo");
+    return [];
   }
-  
-  // Fallback to local data
-  return [...JOBS];
 };
 
 /**
@@ -113,19 +111,16 @@ export const getJobById = async (jobId: string): Promise<JobType | null> => {
         userPhoto: job.user?.photoURL,
         timestamp: new Date(job.createdAt).getTime(),
         comments: job.comments || [],
-        likes: job.likes || [],
+        likes: job.likedBy?.map((user: any) => user.id) || [],
         createdAt: job.createdAt,
         updatedAt: job.updatedAt
       };
     }
+    return null;
   } catch (error) {
     console.error("Error al obtener trabajo desde la API:", error);
-    console.log("Usando datos locales como respaldo");
+    return null;
   }
-  
-  // Fallback to local data
-  const job = JOBS.find(job => job.id === jobId);
-  return job ? { ...job } : null;
 };
 
 /**
@@ -133,7 +128,7 @@ export const getJobById = async (jobId: string): Promise<JobType | null> => {
  */
 export const createJob = async (jobData: Omit<JobType, "id" | "timestamp" | "comments" | "likes">): Promise<JobType> => {
   try {
-    // Try to create job via API first
+    // Try to create job via API
     const response = await apiRequest('/jobs', 'POST', {
       title: jobData.title,
       description: jobData.description,
@@ -144,7 +139,7 @@ export const createJob = async (jobData: Omit<JobType, "id" | "timestamp" | "com
     
     if (response && response.job) {
       const job = response.job;
-      const newJob: JobType = {
+      return {
         id: job.id,
         title: job.title,
         description: job.description,
@@ -161,32 +156,12 @@ export const createJob = async (jobData: Omit<JobType, "id" | "timestamp" | "com
         createdAt: job.createdAt,
         updatedAt: job.updatedAt
       };
-      
-      // Update local cache
-      JOBS = [...JOBS, newJob];
-      return newJob;
     }
     
     throw new Error('Error al crear trabajo en la API');
   } catch (error) {
     console.error("Error al crear trabajo en la API:", error);
-    console.log("Usando almacenamiento local como respaldo");
-    
-    // Fallback to local data creation
-    await new Promise(resolve => setTimeout(resolve, 700));
-    
-    const newJob: JobType = {
-      ...jobData,
-      id: `job${Date.now()}`,
-      timestamp: Date.now(),
-      comments: [],
-      likes: [],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-    
-    JOBS = [...JOBS, newJob];
-    return { ...newJob };
+    throw error;
   }
 };
 

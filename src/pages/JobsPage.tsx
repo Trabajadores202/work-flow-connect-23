@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { JobType } from '@/contexts/JobContext';
+import { apiRequest } from '@/lib/api';
 
 const JobsPage = () => {
   const { jobs: dataJobs, loading, jobCategories } = useData();
@@ -19,29 +20,73 @@ const JobsPage = () => {
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [filteredJobs, setFilteredJobs] = useState<JobType[]>([]);
 
+  // Función para cargar trabajos directamente de la API
+  const loadJobsFromApi = async () => {
+    try {
+      const response = await apiRequest('/jobs');
+      if (response && response.jobs) {
+        return response.jobs.map((job: any) => ({
+          id: job.id,
+          title: job.title,
+          description: job.description,
+          budget: job.budget,
+          category: job.category,
+          skills: job.skills || [],
+          status: job.status || 'open',
+          userId: job.userId,
+          userName: job.user?.name || "Usuario",
+          userPhoto: job.user?.photoURL,
+          timestamp: new Date(job.createdAt).getTime(),
+          comments: [],
+          likes: job.likedBy?.map((user: any) => user.id) || [],
+          createdAt: job.createdAt,
+          updatedAt: job.updatedAt
+        }));
+      }
+      return [];
+    } catch (error) {
+      console.error("Error al obtener trabajos desde la API:", error);
+      return [];
+    }
+  };
+
   useEffect(() => {
-    // Convert DataContext jobs to JobContext compatible format
-    const formattedJobs = dataJobs.map(job => ({
-      ...job,
-      likes: job.likes || [],
-      comments: job.comments || [],
-      status: job.status || 'open'
-    })) as JobType[];
+    const getJobs = async () => {
+      try {
+        // Intentar cargar desde la API primero
+        const apiJobs = await loadJobsFromApi();
+        
+        // Si tenemos trabajos de la API, usarlos
+        const jobsToUse = apiJobs.length > 0 ? apiJobs : dataJobs;
+        
+        // Convertir a formato compatible
+        const formattedJobs = jobsToUse.map(job => ({
+          ...job,
+          likes: job.likes || [],
+          comments: job.comments || [],
+          status: job.status || 'open',
+        })) as unknown as JobType[];
+        
+        let results = formattedJobs;
+        
+        if (searchQuery) {
+          results = results.filter(job => 
+            job.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+            job.description.toLowerCase().includes(searchQuery.toLowerCase())
+          );
+        }
+        
+        if (categoryFilter !== 'all') {
+          results = results.filter(job => job.category === categoryFilter);
+        }
+        
+        setFilteredJobs(results);
+      } catch (error) {
+        console.error("Error procesando trabajos:", error);
+      }
+    };
     
-    let results = formattedJobs;
-    
-    if (searchQuery) {
-      results = results.filter(job => 
-        job.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-        job.description.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
-    
-    if (categoryFilter !== 'all') {
-      results = results.filter(job => job.category === categoryFilter);
-    }
-    
-    setFilteredJobs(results);
+    getJobs();
   }, [dataJobs, searchQuery, categoryFilter]);
 
   if (loading) {
@@ -101,7 +146,7 @@ const JobsPage = () => {
         <div className="space-y-4">
           {filteredJobs.length > 0 ? (
             filteredJobs.map(job => (
-              <JobCard key={job.id} job={job} />
+              <JobCard key={job.id} job={job as any} />
             ))
           ) : (
             <div className="text-center py-8 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">

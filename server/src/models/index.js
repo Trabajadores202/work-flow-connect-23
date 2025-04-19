@@ -28,6 +28,14 @@ Comment.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 User.hasMany(Reply, { foreignKey: 'userId', as: 'replies' });
 Reply.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 
+// Users - Jobs (Likes) (Muchos usuarios pueden dar like a muchos trabajos)
+User.belongsToMany(Job, { through: 'JobLikes', as: 'likedJobs', foreignKey: 'userId' });
+Job.belongsToMany(User, { through: 'JobLikes', as: 'likedBy', foreignKey: 'jobId' });
+
+// Users - Jobs (Saved) (Muchos usuarios pueden guardar muchos trabajos)
+User.belongsToMany(Job, { through: 'SavedJobs', as: 'savedJobs', foreignKey: 'userId' });
+Job.belongsToMany(User, { through: 'SavedJobs', as: 'savedBy', foreignKey: 'jobId' });
+
 // Exportar los modelos
 module.exports = {
   sequelize,

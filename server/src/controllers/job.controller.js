@@ -69,6 +69,12 @@ exports.getAllJobs = async (req, res) => {
           model: User,
           as: 'user',
           attributes: ['id', 'name', 'photoURL']
+        },
+        {
+          model: User,
+          as: 'likedBy',
+          attributes: ['id'],
+          through: { attributes: [] }
         }
       ],
       order: [['createdAt', 'DESC']],
