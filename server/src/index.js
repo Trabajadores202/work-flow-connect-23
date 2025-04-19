@@ -59,7 +59,8 @@ const startServer = async () => {
     
     if (isConnected) {
       // Sincronizar modelos con la base de datos
-      await sequelize.sync({ alter: true });
+      // Cambiamos de alter:true a force:false para evitar que intente modificar restricciones
+      await sequelize.sync({ force: false });
       console.log('Modelos sincronizados con la base de datos.');
       
       // Iniciar el servidor HTTP

@@ -9,23 +9,23 @@ const Message = require('./message.model');
 
 // Definir las relaciones entre los modelos
 // Users - Jobs (Un usuario puede tener muchos trabajos)
-User.hasMany(Job, { foreignKey: 'userId', as: 'jobs' });
+User.hasMany(Job, { foreignKey: 'userId', as: 'jobs', onDelete: 'CASCADE' });
 Job.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 
 // Jobs - Comments (Un trabajo puede tener muchos comentarios)
-Job.hasMany(Comment, { foreignKey: 'jobId', as: 'comments' });
+Job.hasMany(Comment, { foreignKey: 'jobId', as: 'comments', onDelete: 'CASCADE' });
 Comment.belongsTo(Job, { foreignKey: 'jobId', as: 'job' });
 
 // Comments - Replies (Un comentario puede tener muchas respuestas)
-Comment.hasMany(Reply, { foreignKey: 'commentId', as: 'replies' });
+Comment.hasMany(Reply, { foreignKey: 'commentId', as: 'replies', onDelete: 'CASCADE' });
 Reply.belongsTo(Comment, { foreignKey: 'commentId', as: 'comment' });
 
 // Users - Comments (Un usuario puede hacer muchos comentarios)
-User.hasMany(Comment, { foreignKey: 'userId', as: 'comments' });
+User.hasMany(Comment, { foreignKey: 'userId', as: 'comments', onDelete: 'CASCADE' });
 Comment.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 
 // Users - Replies (Un usuario puede hacer muchas respuestas)
-User.hasMany(Reply, { foreignKey: 'userId', as: 'replies' });
+User.hasMany(Reply, { foreignKey: 'userId', as: 'replies', onDelete: 'CASCADE' });
 Reply.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 
 // Users - Jobs (Likes) (Muchos usuarios pueden dar like a muchos trabajos)
@@ -36,14 +36,7 @@ Job.belongsToMany(User, { through: 'JobLikes', as: 'likedBy', foreignKey: 'jobId
 User.belongsToMany(Job, { through: 'SavedJobs', as: 'savedJobs', foreignKey: 'userId' });
 Job.belongsToMany(User, { through: 'SavedJobs', as: 'savedBy', foreignKey: 'jobId' });
 
-// Asegurarse de que las tablas estén sincronizadas
-sequelize.sync({ alter: true })
-  .then(() => {
-    console.log('Tablas sincronizadas correctamente');
-  })
-  .catch(error => {
-    console.error('Error al sincronizar tablas:', error);
-  });
+// NO ejecutamos sequelize.sync() aquí ya que lo haremos en el archivo principal (index.js)
 
 // Exportar los modelos
 module.exports = {
