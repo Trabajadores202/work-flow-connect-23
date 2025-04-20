@@ -1,6 +1,48 @@
 
-const { Job, User, Comment, Reply } = require('../models');
+const { Job, User, Comment, Reply, Category, Skill } = require('../models');
 const { Op } = require('sequelize');
+
+// Obtener categorías
+exports.getCategories = async (req, res) => {
+  try {
+    const categories = await Category.findAll({
+      order: [['name', 'ASC']]
+    });
+    
+    return res.status(200).json({
+      success: true,
+      categories: categories.map(category => category.name)
+    });
+  } catch (error) {
+    console.error('Error al obtener categorías:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error al obtener categorías',
+      error: error.message
+    });
+  }
+};
+
+// Obtener habilidades
+exports.getSkills = async (req, res) => {
+  try {
+    const skills = await Skill.findAll({
+      order: [['name', 'ASC']]
+    });
+    
+    return res.status(200).json({
+      success: true,
+      skills: skills.map(skill => skill.name)
+    });
+  } catch (error) {
+    console.error('Error al obtener habilidades:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error al obtener habilidades',
+      error: error.message
+    });
+  }
+};
 
 /**
  * Crear un nuevo trabajo
@@ -25,6 +67,18 @@ exports.createJob = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Faltan campos requeridos (título, descripción, presupuesto, categoría)'
+      });
+    }
+    
+    // Verificar que la categoría existe
+    const categoryExists = await Category.findOne({
+      where: { name: category }
+    });
+    
+    if (!categoryExists) {
+      return res.status(400).json({
+        success: false,
+        message: 'La categoría seleccionada no existe'
       });
     }
     

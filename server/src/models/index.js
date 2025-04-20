@@ -6,6 +6,8 @@ const Comment = require('./comment.model');
 const Reply = require('./reply.model');
 const Chat = require('./chat.model');
 const Message = require('./message.model');
+const Category = require('./category.model');
+const Skill = require('./skill.model');
 
 // Definir las relaciones entre los modelos
 // Users - Jobs (Un usuario puede tener muchos trabajos)
@@ -46,5 +48,7 @@ module.exports = {
   Comment,
   Reply,
   Chat,
-  Message
+  Message,
+  Category,
+  Skill
 };

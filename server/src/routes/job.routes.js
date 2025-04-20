@@ -6,6 +6,8 @@ const { verifyToken, isClient } = require('../middleware/auth');
 
 // Rutas públicas (lectura)
 router.get('/', jobController.getAllJobs);
+router.get('/categories', jobController.getCategories);
+router.get('/skills', jobController.getSkills);
 router.get('/:jobId', jobController.getJobById);
 
 // Rutas protegidas

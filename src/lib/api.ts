@@ -78,3 +78,24 @@ export async function apiRequest(
     throw error;
   }
 }
+
+// Funciones específicas para categorías y habilidades
+export async function getCategories() {
+  try {
+    const response = await apiRequest('/jobs/categories');
+    return response.categories || [];
+  } catch (error) {
+    console.error('Error al obtener categorías:', error);
+    return [];
+  }
+}
+
+export async function getSkills() {
+  try {
+    const response = await apiRequest('/jobs/skills');
+    return response.skills || [];
+  } catch (error) {
+    console.error('Error al obtener habilidades:', error);
+    return [];
+  }
+}
