@@ -1,79 +1,55 @@
 
-/**
- * Componente de Página de Perfil de Usuario
- * 
- * Esta página muestra el perfil de otro usuario incluyendo:
- * - Información personal del usuario y foto de perfil
- * - Biografía y habilidades del usuario
- * - Botón para contactar/chatear con el usuario
- * - Lista de propuestas publicadas por el usuario
- * 
- * Maneja la lógica para crear un nuevo chat o navegar a uno existente
- * cuando se hace clic en el botón "Contactar".
- */
-
-import { useParams, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useParams, Link } from 'react-router-dom';
 import MainLayout from '@/components/Layout/MainLayout';
 import { useData } from '@/contexts/DataContext';
 import { useJobs } from '@/contexts/JobContext';
-import { useAuth } from '@/contexts/AuthContext';
-import { useChat } from '@/contexts/ChatContext';
+import { UserType } from '@/contexts/DataContext';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import JobCard from '@/components/JobCard';
 import { MessageCircle } from 'lucide-react';
-import { toast } from '@/components/ui/use-toast';
+import { useChat } from '@/contexts/ChatContext';
 
 const UserProfile = () => {
-  // Obtener el ID del usuario de los parámetros de la URL
   const { userId } = useParams<{ userId: string }>();
-  const navigate = useNavigate();
+  const { getUserById } = useData();
+  const { jobs } = useJobs();
+  const { createOrGetDirectChat } = useChat();
   
-  // Hooks de contexto para acceder a datos y funcionalidades
-  const { getUserById } = useData(); // Para obtener datos del usuario
-  const { jobs } = useJobs(); // Para obtener propuestas
-  const { currentUser } = useAuth(); // Usuario actual autenticado
-  const { createPrivateChat, findExistingPrivateChat } = useChat(); // Funcionalidades de chat
+  const [user, setUser] = useState<UserType | null>(null);
+  const [userJobs, setUserJobs] = useState([]);
   
-  // Obtener datos del usuario desde el ID en la URL
-  const user = userId ? getUserById(userId) : undefined;
+  useEffect(() => {
+    if (userId) {
+      const userData = getUserById(userId);
+      if (userData) {
+        setUser(userData);
+      }
+    }
+  }, [userId, getUserById]);
   
-  // Filtrar propuestas publicadas por este usuario
-  const userJobs = jobs.filter(job => job.userId === userId);
+  useEffect(() => {
+    if (userId && Array.isArray(jobs)) {
+      setUserJobs(jobs.filter(job => job.userId === userId));
+    }
+  }, [userId, jobs]);
   
-  /**
-   * Manejar el clic en el botón "Contactar"
-   * Esta función abre un chat existente o crea uno nuevo
-   */
-  const handleContactClick = () => {
-    if (!currentUser || !user) return;
-    
-    // Verificar si ya existe un chat con este usuario
-    const existingChat = findExistingPrivateChat(user.id);
-    
-    if (existingChat) {
-      // Si existe un chat, navegar a él
-      navigate('/chats');
-      toast({
-        title: "Chat existente",
-        description: `Abriendo la conversación con ${user.name}`
-      });
-    } else {
-      // Si no, crear uno nuevo
-      createPrivateChat(user.id);
-      navigate('/chats');
-      toast({
-        title: "Chat iniciado",
-        description: `Has iniciado una conversación con ${user.name}`
-      });
+  const handleStartChat = async () => {
+    if (user) {
+      try {
+        const chatId = await createOrGetDirectChat(user.id);
+        window.location.href = `/chats/${chatId}`;
+      } catch (error) {
+        console.error('Error al crear chat:', error);
+      }
     }
   };
-
-  // Función auxiliar para formatear fechas
-  const formatDate = (timestamp?: number) => {
-    if (!timestamp) return "Fecha no disponible";
-    
+  
+  const formatDate = (timestamp: number) => {
     const date = new Date(timestamp);
     return date.toLocaleDateString('es-ES', {
       day: '2-digit',
@@ -81,154 +57,130 @@ const UserProfile = () => {
       year: 'numeric'
     });
   };
-
-  // Mostrar mensaje si no se encuentra el usuario
+  
   if (!user) {
     return (
       <MainLayout>
         <div className="text-center py-12">
-          <h2 className="text-xl font-semibold">Usuario no encontrado</h2>
-          <p className="text-gray-600 mt-2">El usuario que estás buscando no existe o ha sido eliminado.</p>
-          <Button className="mt-4" onClick={() => navigate('/dashboard')}>
-            Volver al inicio
-          </Button>
+          <p className="dark:text-white">Usuario no encontrado</p>
         </div>
       </MainLayout>
     );
   }
-
+  
   return (
     <MainLayout>
-      <div className="space-y-8">
-        {/* Tarjeta de perfil de usuario */}
-        <Card>
-          <CardContent className="p-6">
-            <div className="grid gap-6 md:grid-cols-[200px_1fr]">
-              {/* Foto de perfil y botón de contacto */}
-              <div className="flex flex-col items-center text-center">
-                <Avatar className="h-32 w-32">
-                  <AvatarImage src={user.photoURL} alt={user.name} />
-                  <AvatarFallback className="bg-wfc-purple-medium text-white text-4xl">
-                    {user.name?.charAt(0).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <h2 className="text-xl font-bold mt-4">{user.name}</h2>
-                
-                {/* Solo mostrar botón de contacto si no es el usuario actual */}
-                {currentUser && currentUser.id !== userId && (
+      <div className="space-y-6">
+        <div className="grid md:grid-cols-3 gap-6">
+          <div className="md:col-span-1">
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex flex-col items-center text-center">
+                  <Avatar className="h-24 w-24 mb-4">
+                    <AvatarImage src={user.photoURL} alt={user.name} />
+                    <AvatarFallback className="bg-wfc-purple-medium text-white text-2xl">
+                      {user.name?.charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  
+                  <h2 className="text-xl font-semibold mb-1 dark:text-white">{user.name}</h2>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                    {user.role === 'freelancer' ? 'Freelancer' : 'Cliente'}
+                  </p>
+                  
                   <Button 
-                    className="mt-4 w-full bg-wfc-purple hover:bg-wfc-purple-medium"
-                    onClick={handleContactClick}
+                    variant="outline" 
+                    className="w-full mb-4 border-wfc-purple text-wfc-purple hover:bg-wfc-purple hover:text-white dark:border-wfc-purple-medium dark:text-wfc-purple-medium dark:hover:bg-wfc-purple-medium dark:hover:text-white"
+                    onClick={handleStartChat}
                   >
-                    <MessageCircle className="h-4 w-4 mr-2" />
-                    Contactar
+                    <MessageCircle className="mr-2 h-4 w-4" />
+                    Enviar mensaje
                   </Button>
-                )}
-              </div>
-              
-              {/* Información del usuario */}
-              <div className="space-y-6">
-                {/* Biografía */}
-                {user.bio ? (
-                  <div>
-                    <h3 className="text-lg font-semibold mb-2">Biografía</h3>
-                    <p className="text-gray-700">{user.bio}</p>
-                  </div>
-                ) : (
-                  <div>
-                    <h3 className="text-lg font-semibold mb-2">Biografía</h3>
-                    <p className="text-gray-500 italic">Este usuario no ha agregado una biografía.</p>
-                  </div>
-                )}
-                
-                {/* Habilidades */}
-                <div>
-                  <h3 className="text-lg font-semibold mb-2">Habilidades</h3>
-                  {user.skills && user.skills.length > 0 ? (
-                    <div className="flex flex-wrap gap-2">
-                      {user.skills.map((skill, index) => (
-                        <Badge key={index} className="bg-wfc-purple-medium text-white">
-                          {skill}
-                        </Badge>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-gray-500">No se han agregado habilidades</p>
-                  )}
                 </div>
                 
-                {/* Información adicional */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="mt-6 space-y-4">
                   <div>
-                    <h4 className="text-sm text-gray-600 mb-1">Email</h4>
-                    <p>{user.email}</p>
-                  </div>
-                  <div>
-                    <h4 className="text-sm text-gray-600 mb-1">Miembro desde</h4>
-                    <p>{user.joinedAt ? formatDate(user.joinedAt) : "Abril 2025"}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        {/* Propuestas del usuario */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Propuestas de {user.name}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {userJobs.length === 0 ? (
-              <div className="text-center py-6">
-                <p className="text-gray-500">Este usuario aún no ha publicado propuestas</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {userJobs.map((job) => (
-                  <div 
-                    key={job.id} 
-                    className="border border-gray-200 rounded-lg p-4 hover:border-wfc-purple cursor-pointer transition-colors"
-                    onClick={() => navigate(`/jobs/${job.id}`)}
-                  >
-                    <div className="flex flex-col md:flex-row justify-between">
-                      <div>
-                        <h3 className="font-medium">{job.title}</h3>
-                        <p className="text-sm text-gray-500">
-                          Publicado el {formatDate(job.timestamp)}
-                        </p>
-                      </div>
-                      <div className="mt-2 md:mt-0">
-                        <Badge className={`
-                          ${job.status === 'open' ? 'bg-green-100 text-green-800' : 
-                            job.status === 'in-progress' ? 'bg-blue-100 text-blue-800' : 
-                            'bg-gray-100 text-gray-800'}
-                        `}>
-                          {job.status === 'open' ? 'Abierto' : 
-                            job.status === 'in-progress' ? 'En progreso' : 
-                            'Completado'}
-                        </Badge>
-                      </div>
-                    </div>
-                    <p className="text-sm text-gray-700 mt-2 line-clamp-2">{job.description}</p>
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      {job.skills.slice(0, 3).map((skill, index) => (
-                        <Badge key={index} variant="outline" className="bg-gray-50 text-xs">
-                          {skill}
-                        </Badge>
-                      ))}
-                      {job.skills.length > 3 && (
-                        <Badge variant="outline" className="bg-gray-50 text-xs">
-                          +{job.skills.length - 3} más
-                        </Badge>
+                    <h3 className="text-sm font-medium text-gray-600 dark:text-gray-300 mb-2">Habilidades</h3>
+                    <div className="flex flex-wrap gap-1">
+                      {user.skills && user.skills.length > 0 ? (
+                        user.skills.map((skill, index) => (
+                          <Badge key={index} variant="secondary" className="bg-gray-100 dark:bg-gray-800">
+                            {skill}
+                          </Badge>
+                        ))
+                      ) : (
+                        <p className="text-sm text-gray-500 dark:text-gray-400">No hay habilidades especificadas</p>
                       )}
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                  
+                  <div className="border-t pt-4 dark:border-gray-700">
+                    <h3 className="text-sm font-medium text-gray-600 dark:text-gray-300 mb-2">Información</h3>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600 dark:text-gray-400">Miembro desde</span>
+                        <span className="font-medium dark:text-white">
+                          {user.joinDate ? formatDate(user.joinDate) : "Apr 2025"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600 dark:text-gray-400">Calificación</span>
+                        <span className="font-medium dark:text-white">5.0 ⭐</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600 dark:text-gray-400">Trabajos completados</span>
+                        <span className="font-medium dark:text-white">12</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+          
+          <div className="md:col-span-2">
+            <Tabs defaultValue="about" className="w-full">
+              <TabsList className="w-full grid grid-cols-2">
+                <TabsTrigger value="about">Acerca de</TabsTrigger>
+                <TabsTrigger value="proposals">Propuestas</TabsTrigger>
+              </TabsList>
+              <TabsContent value="about" className="mt-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="dark:text-white">Biografía</CardTitle>
+                  </CardHeader>
+                  <CardContent className="dark:text-gray-300">
+                    {user.bio ? (
+                      <p>{user.bio}</p>
+                    ) : (
+                      <p className="text-gray-500 dark:text-gray-400">Este usuario no ha añadido una biografía todavía.</p>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+              <TabsContent value="proposals" className="mt-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="dark:text-white">Propuestas publicadas</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {userJobs.length === 0 ? (
+                      <p className="text-center py-6 text-gray-500 dark:text-gray-400">
+                        Este usuario no ha publicado ninguna propuesta todavía.
+                      </p>
+                    ) : (
+                      <div className="space-y-4">
+                        {userJobs.map(job => (
+                          <JobCard key={job.id} job={job} />
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
+          </div>
+        </div>
       </div>
     </MainLayout>
   );

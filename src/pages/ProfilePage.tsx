@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from 'react';
 import MainLayout from '@/components/Layout/MainLayout';
 import { useAuth } from '@/contexts/AuthContext';
@@ -31,7 +32,7 @@ import EditJobForm from '@/components/EditJobForm';
 
 const ProfilePage = () => {
   const { currentUser, updateUserProfile, uploadProfilePhoto } = useAuth();
-  const { skillsList, loadData } = useData();
+  const { skillsList } = useData();
   const { jobs, getSavedJobs, updateJob, deleteJob, loadJobs } = useJobs();
   
   const [isUpdating, setIsUpdating] = useState(false);
@@ -85,7 +86,6 @@ const ProfilePage = () => {
       await updateJob(editingJob.id, jobData);
       
       await loadJobs();
-      await loadData();
       
       setEditingJob(null);
       
@@ -108,7 +108,8 @@ const ProfilePage = () => {
     try {
       await deleteJob(jobId);
       
-      setUserJobs(userJobs.filter(job => job.id !== jobId));
+      // Reload jobs after deletion
+      await loadJobs();
       
       toast({
         title: "Propuesta eliminada",

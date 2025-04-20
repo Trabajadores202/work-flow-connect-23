@@ -1,130 +1,97 @@
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import MainLayout from '@/components/Layout/MainLayout';
 import { useData } from '@/contexts/DataContext';
-import { useAuth } from '@/contexts/AuthContext';
-import { JobCard } from '@/components/JobCard';
-import { Button } from '@/components/ui/button';
+import { useJobs } from '@/contexts/JobContext';
+import JobCard from '@/components/JobCard';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { X } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import { JobType } from '@/contexts/JobContext';
-import { apiRequest } from '@/lib/api';
+import { Button } from '@/components/ui/button';
+import { Search, Filter } from 'lucide-react';
 
 const JobsPage = () => {
-  const { jobs: dataJobs, loading, jobCategories } = useData();
-  const { currentUser } = useAuth();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('all');
-  const [filteredJobs, setFilteredJobs] = useState<JobType[]>([]);
-
-  // Función para cargar trabajos directamente de la API
-  const loadJobsFromApi = async () => {
-    try {
-      const response = await apiRequest('/jobs');
-      if (response && response.jobs) {
-        return response.jobs.map((job: any) => ({
-          id: job.id,
-          title: job.title,
-          description: job.description,
-          budget: job.budget,
-          category: job.category,
-          skills: job.skills || [],
-          status: job.status || 'open',
-          userId: job.userId,
-          userName: job.user?.name || "Usuario",
-          userPhoto: job.user?.photoURL,
-          timestamp: new Date(job.createdAt).getTime(),
-          comments: [],
-          likes: job.likedBy?.map((user: any) => user.id) || [],
-          createdAt: job.createdAt,
-          updatedAt: job.updatedAt
-        }));
-      }
-      return [];
-    } catch (error) {
-      console.error("Error al obtener trabajos desde la API:", error);
-      return [];
-    }
-  };
-
+  const { jobCategories } = useData();
+  const { jobs, loading, loadJobs } = useJobs();
+  
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedStatus, setSelectedStatus] = useState('all');
+  const [filteredJobs, setFilteredJobs] = useState(jobs);
+  
   useEffect(() => {
-    const getJobs = async () => {
-      try {
-        // Intentar cargar desde la API primero
-        const apiJobs = await loadJobsFromApi();
-        
-        // Si tenemos trabajos de la API, usarlos
-        const jobsToUse = apiJobs.length > 0 ? apiJobs : dataJobs;
-        
-        // Convertir a formato compatible
-        const formattedJobs = jobsToUse.map(job => ({
-          ...job,
-          likes: job.likes || [],
-          comments: job.comments || [],
-          status: job.status || 'open',
-        })) as unknown as JobType[];
-        
-        let results = formattedJobs;
-        
-        if (searchQuery) {
-          results = results.filter(job => 
-            job.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-            job.description.toLowerCase().includes(searchQuery.toLowerCase())
-          );
-        }
-        
-        if (categoryFilter !== 'all') {
-          results = results.filter(job => job.category === categoryFilter);
-        }
-        
-        setFilteredJobs(results);
-      } catch (error) {
-        console.error("Error procesando trabajos:", error);
-      }
-    };
+    // Reload jobs on component mount
+    loadJobs();
+  }, []);
+  
+  useEffect(() => {
+    // Filter jobs whenever jobs, search term, or filter categories change
+    const filtered = jobs.filter(job => {
+      // Category filter
+      const matchesCategory = selectedCategory === 'all' || job.category === selectedCategory;
+      
+      // Status filter
+      const matchesStatus = selectedStatus === 'all' || job.status === selectedStatus;
+      
+      // Search filter
+      const matchesSearch = 
+        job.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        job.description.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      return matchesCategory && matchesStatus && matchesSearch;
+    });
     
-    getJobs();
-  }, [dataJobs, searchQuery, categoryFilter]);
-
-  if (loading) {
-    return <MainLayout>Cargando...</MainLayout>;
-  }
-
+    setFilteredJobs(filtered);
+  }, [jobs, searchTerm, selectedCategory, selectedStatus]);
+  
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+  };
+  
+  const handleCategoryChange = (value: string) => {
+    setSelectedCategory(value);
+  };
+  
+  const handleStatusChange = (value: string) => {
+    setSelectedStatus(value);
+  };
+  
+  const handleClearFilters = () => {
+    setSearchTerm('');
+    setSelectedCategory('all');
+    setSelectedStatus('all');
+  };
+  
   return (
     <MainLayout>
-      <div className="container mx-auto py-8">
-        <div className="flex justify-between items-center mb-4">
-          <h1 className="text-2xl font-bold dark:text-white">Explorar Trabajos</h1>
-          {currentUser?.role === 'client' && (
-            <Link to="/jobs/create">
-              <Button>Publicar un Trabajo</Button>
-            </Link>
-          )}
-        </div>
-
-        <div className="mb-4 flex space-x-2">
-          <Input 
-            type="text" 
-            placeholder="Buscar trabajos..." 
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold mb-2 dark:text-white">Explorar propuestas</h1>
+        <p className="text-gray-600 dark:text-gray-300">
+          Encuentra propuestas de trabajo que se ajusten a tus habilidades y experiencia
+        </p>
+      </div>
+      
+      <div className="flex flex-col md:flex-row gap-4 mb-6">
+        <div className="relative flex-grow">
+          <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Input
+            placeholder="Buscar propuestas..."
+            className="pl-8 dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+            value={searchTerm}
+            onChange={handleSearch}
           />
-          <Select onValueChange={setCategoryFilter} defaultValue={categoryFilter}>
+        </div>
+        
+        <div className="flex flex-wrap gap-2">
+          <Select value={selectedCategory} onValueChange={handleCategoryChange}>
             <SelectTrigger className="w-[180px] dark:bg-gray-800 dark:border-gray-700 dark:text-white">
-              <SelectValue placeholder="Filtrar por categoría" />
+              <SelectValue placeholder="Categoría" />
             </SelectTrigger>
             <SelectContent className="dark:bg-gray-800 dark:border-gray-700">
-              <SelectItem value="all" className="dark:text-white dark:focus:text-white dark:focus:bg-gray-700">
-                Todas las categorías
-              </SelectItem>
-              {jobCategories.map(category => (
+              <SelectItem value="all" className="dark:text-white dark:focus:text-white dark:focus:bg-gray-700">Todas las categorías</SelectItem>
+              {jobCategories.map((category, idx) => (
                 <SelectItem 
-                  key={category} 
-                  value={category} 
+                  key={idx} 
+                  value={category}
                   className="dark:text-white dark:focus:text-white dark:focus:bg-gray-700"
                 >
                   {category}
@@ -132,29 +99,51 @@ const JobsPage = () => {
               ))}
             </SelectContent>
           </Select>
-        </div>
-
-        <div className="mb-4">
-          {categoryFilter !== 'all' && (
-            <Badge variant="secondary" className="mr-2 mb-2 dark:bg-gray-700 dark:text-white">
-              {categoryFilter}
-              <X className="h-3 w-3 ml-1 cursor-pointer" onClick={() => setCategoryFilter('all')} />
-            </Badge>
-          )}
-        </div>
           
-        <div className="space-y-4">
-          {filteredJobs.length > 0 ? (
-            filteredJobs.map(job => (
-              <JobCard key={job.id} job={job as any} />
-            ))
-          ) : (
-            <div className="text-center py-8 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-              <p className="text-gray-500 dark:text-gray-400">No se encontraron propuestas con los criterios seleccionados</p>
-            </div>
-          )}
+          <Select value={selectedStatus} onValueChange={handleStatusChange}>
+            <SelectTrigger className="w-[180px] dark:bg-gray-800 dark:border-gray-700 dark:text-white">
+              <SelectValue placeholder="Estado" />
+            </SelectTrigger>
+            <SelectContent className="dark:bg-gray-800 dark:border-gray-700">
+              <SelectItem value="all" className="dark:text-white dark:focus:text-white dark:focus:bg-gray-700">Todos los estados</SelectItem>
+              <SelectItem value="open" className="dark:text-white dark:focus:text-white dark:focus:bg-gray-700">Abierto</SelectItem>
+              <SelectItem value="in-progress" className="dark:text-white dark:focus:text-white dark:focus:bg-gray-700">En progreso</SelectItem>
+              <SelectItem value="completed" className="dark:text-white dark:focus:text-white dark:focus:bg-gray-700">Completado</SelectItem>
+            </SelectContent>
+          </Select>
+          
+          <Button 
+            variant="outline" 
+            className="dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+            onClick={handleClearFilters}
+          >
+            <Filter className="mr-2 h-4 w-4" />
+            Limpiar
+          </Button>
         </div>
       </div>
+      
+      {loading ? (
+        <div className="text-center py-12">
+          <p className="text-gray-500 dark:text-gray-400">Cargando propuestas...</p>
+        </div>
+      ) : filteredJobs.length === 0 ? (
+        <div className="text-center py-12 border rounded-lg border-dashed border-gray-300 dark:border-gray-700">
+          <p className="text-gray-500 dark:text-gray-400">No se encontraron propuestas que coincidan con los criterios de búsqueda</p>
+          <Button 
+            onClick={handleClearFilters}
+            className="mt-4 bg-wfc-purple hover:bg-wfc-purple-medium"
+          >
+            Limpiar filtros
+          </Button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-6">
+          {filteredJobs.map((job) => (
+            <JobCard key={job.id} job={job} />
+          ))}
+        </div>
+      )}
     </MainLayout>
   );
 };
